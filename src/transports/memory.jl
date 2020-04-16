@@ -12,7 +12,7 @@ struct MemoryConnection <: Connection
 end
 
 """
-Create a new transport for 
+Create a new transport for passing messages within 
 """
 function memory()
     MemoryTransport(Dict())

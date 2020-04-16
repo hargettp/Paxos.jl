@@ -1,6 +1,6 @@
 module Transports
 
-export memory, TCPTransport
+export memory, tcp
 
 include("./transports/base.jl")
 include("./transports/memory.jl")

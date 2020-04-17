@@ -204,7 +204,7 @@ function listener(handler::Function, transport::Transport, address)
     @async begin
         @debug "Beginning to listen"
         listenOn(transport, address) do connection
-            @debug "Beginning connection handling"
+            @debug "Beginning to handle a connection"
             messenger = Messenger(connection)
             try
                 handler(messenger)
@@ -212,7 +212,7 @@ function listener(handler::Function, transport::Transport, address)
                 printError("Error while handling", ex)
             finally
                 finallyClose(messenger)
-                @debug "Finished connection handling"
+                @debug "Finished handling a connection"
             end
         end
         @debug "Finished listening"

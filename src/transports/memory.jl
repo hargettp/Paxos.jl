@@ -21,25 +21,27 @@ end
 # -----------------
 
 function connectTo(transport::MemoryTransport, recipient)
-    listener = transport.listeners.get!(recipient, Channel())
+    backlog = get!(transport.listeners,recipient, Channel())
     sent = Channel()
     received = Channel()
     # put the channels in the reverse order of thow the client sees them,
     # because when the serer sends it just writes to the received of the client,
     # and vice versa for client sending to server
-    listener.put!(MemoryConnection(received, sent))
+    put!(backlog,MemoryConnection(received, sent))
     MemoryConnection(sent, received)
 end
 
 function listenOn(handler::Function, transport::MemoryTransport, address)
     @sync try
-        connections = transport.listeners.get!(address, Channel())
+        @debug "Beginning to listen for memory connections on $address"
+        connections = get!(transport.listeners,address, Channel())
         while true
             client = take!(connections)
             @async handler(client)
         end
     finally
         delete!(transport.listeners, address)
+        @debug "Finished listening for memory connections on $address"
     end
 end
 

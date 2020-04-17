@@ -2,6 +2,8 @@ import Sockets
 
 using Serialization
 
+using ..Utils
+
 struct TCPTransport <: Transport
 end
 
@@ -51,4 +53,3 @@ Receive a message over the indicated connection
 function receiveFrom(connection::Sockets.TCPSocket)
     deserialize(connection)
 end
-

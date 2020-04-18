@@ -1,6 +1,22 @@
+module Common
+
+export Message,
+    Transport,
+    Connection,
+    Messenger,
+    connectTo,
+    messengerTo,
+    listenOn,
+    sendTo,
+    receivedMessages,
+    sendMessage,
+    connection,
+    listener,
+    call
+
 using Logging
 
-using ..Utils
+using ...Utils
 using Base
 
 """
@@ -265,4 +281,6 @@ function call(messengers::Vector{Messenger}, timeout, message)
         Base.close(responses)
     end
     results
+end
+
 end

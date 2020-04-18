@@ -1,5 +1,6 @@
 using Paxos
 using Paxos.Transports
+using Paxos.Transports.Common
 using Paxos.Utils
 
 using Logging

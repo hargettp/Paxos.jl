@@ -1,20 +1,7 @@
 module Transports
 
 export memory,
-    tcp,
-    Message,
-    Transport,
-    Connection,
-    Messenger,
-    connectTo,
-    messengerTo,
-    listenOn,
-    sendTo,
-    receivedMessages,
-    sendMessage,
-    connection,
-    listener,
-    call
+    tcp
 
 include("./transports/common.jl")
 include("./transports/memory.jl")

@@ -1,6 +1,8 @@
 using UUIDs
 using Base
 
+using .Common
+
 export memory
 
 struct MemoryTransport <: Transport
@@ -21,7 +23,7 @@ end
 
 # -----------------
 
-function connectTo(transport::MemoryTransport, recipient)
+function Common.connectTo(transport::MemoryTransport, recipient)
     backlog = get!(transport.listeners,recipient, Channel())
     sent = Channel()
     received = Channel()
@@ -32,7 +34,7 @@ function connectTo(transport::MemoryTransport, recipient)
     MemoryConnection(sent, received)
 end
 
-function listenOn(handler::Function, transport::MemoryTransport, address)
+function Common.listenOn(handler::Function, transport::MemoryTransport, address)
     @sync try
         @debug "Beginning to listen for memory connections on $address"
         connections = get!(transport.listeners,address, Channel())
@@ -46,15 +48,15 @@ function listenOn(handler::Function, transport::MemoryTransport, address)
     end
 end
 
-function sendTo(connection::MemoryConnection, message)
+function Common.sendTo(connection::MemoryConnection, message)
     put!(connection.sent, message)
 end
 
-function receiveFrom(connection::MemoryConnection)
+function Common.receiveFrom(connection::MemoryConnection)
     take!(connection.received)
 end
 
-function close(connection::MemoryConnection)
+function Base.close(connection::MemoryConnection)
     close(connection.sent)
     close(connection.received)
 end

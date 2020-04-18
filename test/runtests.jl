@@ -29,7 +29,7 @@ function testRoundtrip(transport, address, greeting, response)
         end
     catch ex
         worked = false
-        printError("Error during roundtrip", ex)
+        @error "Error during roundtrip" exception=(ex,stacktrace(catch_backtrace()))
     finally
         finallyClose(listenerTask)
         finallyClose(connection)

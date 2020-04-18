@@ -1,13 +1,3 @@
-# export Message,
-#     Transport,
-#     Connection,
-#     connectTo,
-#     listenOn,
-#     sendTo,
-#     receivedMessages,
-#     connection,
-#     listener
-
 using Logging
 
 using ..Utils
@@ -116,11 +106,12 @@ function messageReceiver(connection::Connection, inbound::Channel, errors::Chann
                 @debug "Message $msg received over transport connection: $connection"
             catch ex
                 put!(errors, (missing, ex))
-                printError("Error receiving message", ex)
+                @error "Error receiving message" exception =
+                    (ex, stacktrace(catch_backtrace()))
             end
         end
     catch ex
-        printError("Error receiving messages", ex)
+        @error "Error receiving messages" exception = (ex, stacktrace(catch_backtrace()))
     finally
         @debug "Finished receive messages"
     end
@@ -139,13 +130,14 @@ function messageSender(connection::Connection, outbound::Channel, errors::Channe
                 @debug "Delivering message $msg over transport connection"
                 sendTo(connection, msg)
                 @debug "Message $msg delivered"
-            catch e
-                put!(errors, (msg, e))
-                printError("Error delivering message", e)
+            catch ex
+                put!(errors, (msg, ex))
+                @error "Error delivering message" exception =
+                    (ex, stacktrace(catch_backtrace()))
             end
         end
     catch ex
-        printError("Error delivering messages", ex)
+        @error "Error delivering messages" exception = (ex, stacktrace(catch_backtrace()))
     finally
         @debug "Finished delivering messages"
     end
@@ -208,7 +200,8 @@ function listener(handler::Function, transport::Transport, address)
             try
                 handler(messenger)
             catch ex
-                printError("Error while handling", ex)
+                @error "Error while handling" exception =
+                    (ex, stacktrace(catch_backtrace()))
             finally
                 finallyClose(messenger)
                 @debug "Finished handling a connection"

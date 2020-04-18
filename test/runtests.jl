@@ -87,7 +87,6 @@ function testGoodCalls(transport)
             "2: hello",
             "3: hello"
         ]
-        @info "Responses are $responses"
         worked = (sort(responses) == expected)
     end
     worked
@@ -96,29 +95,21 @@ end
 function testBadCalls(transport)
     worked = false
     addressesAndTimeouts = [
-        (("localhost", 8001),0.1),
-        (("localhost", 8002),2),
-        (("localhost", 8003),0.1)
+        (("localhost", 8004),0.1),
+        (("localhost", 8005),2),
+        (("localhost", 8006),0.1)
     ]
     calls(transport, addressesAndTimeouts, 2, "hello") do responses
         expected = [
             "1: hello",
             "3: hello"
         ]
-        @info "Responses are $responses"
         worked = (sort(responses) == expected)
     end
     worked
 end
 
 @testset "Transports" begin
-    @testset "Memory" begin
-        @test typeof(memory()) == Paxos.Transports.MemoryTransport
-        @test testRoundtrip(memory(), "memoryTest1", "hello", "Ciao! I heard your greeting")
-        @test testGoodCalls(memory())
-        @test testBadCalls(memory())
-    end
-
     @testset "TCP" begin
         @test typeof(tcp()) == Paxos.Transports.TCPTransport
         @test testRoundtrip(
@@ -127,5 +118,13 @@ end
             "hello",
             "Ciao! I heard your greeting",
         )
+        @test testBadCalls(tcp())
+        @test testGoodCalls(tcp())
+    end
+    @testset "Memory" begin
+        @test typeof(memory()) == Paxos.Transports.MemoryTransport
+        @test testRoundtrip(memory(), "memoryTest1", "hello", "Ciao! I heard your greeting")
+        @test testBadCalls(memory())
+        @test testGoodCalls(memory())
     end
 end

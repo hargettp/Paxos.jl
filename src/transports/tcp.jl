@@ -1,9 +1,13 @@
+module TCP
+
+export tcp
+
 import Sockets
 
 using Serialization
 
-using .Common
-using ..Utils
+using ..Common
+using ...Utils
 
 struct TCPTransport <: Transport
 end
@@ -62,4 +66,6 @@ Receive a message over the indicated connection
 """
 function Common.receiveFrom(connection::TCPConnection)
     deserialize(connection.socket)
+end
+
 end

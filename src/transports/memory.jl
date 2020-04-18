@@ -1,9 +1,11 @@
+module Memory
+
+export memory
+
 using UUIDs
 using Base
 
-using .Common
-
-export memory
+using ..Common
 
 struct MemoryTransport <: Transport
     listeners::Dict{Any,Channel}
@@ -59,4 +61,6 @@ end
 function Base.close(connection::MemoryConnection)
     close(connection.sent)
     close(connection.received)
+end
+
 end

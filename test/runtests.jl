@@ -7,34 +7,36 @@ using Logging
 using Test
 
 function testRoundtrip(transport, address, greeting, response)
-    worked = false
-    @debug "Creating listener"
-    listenerTask = listener(transport, address) do messenger
-        for message in receivedMessages(messenger)
-            sendMessage(messenger, "$response: $message")
-        end
-    end
-    @debug "Pausing for listener to be alive"
-    sleep(2)
-    try
-        @debug "Listener created"
-        @debug "Connecting"
-        connection(transport, address) do messenger
-            @debug "Connected"
-            @debug "Sending test message"
-            sendMessage(messenger, greeting)
-            @debug "Sent"
-            answer = take!(receivedMessages(messenger))
-            worked = (answer == "$response: $greeting")
-        end
-    catch ex
+    bounded(5) do
         worked = false
-        @error "Error during roundtrip" exception=(ex,stacktrace(catch_backtrace()))
-    finally
-        finallyClose(listenerTask)
-        finallyClose(connection)
+        @debug "Creating listener"
+        listenerTask = listener(transport, address) do messenger
+            for message in receivedMessages(messenger)
+                sendMessage(messenger, "$response: $message")
+            end
+        end
+        @debug "Pausing for listener to be alive"
+        sleep(2)
+        try
+            @debug "Listener created"
+            @debug "Connecting"
+            connection(transport, address) do messenger
+                @debug "Connected"
+                @debug "Sending test message"
+                sendMessage(messenger, greeting)
+                @debug "Sent"
+                answer = take!(receivedMessages(messenger))
+                worked = (answer == "$response: $greeting")
+            end
+        catch ex
+            worked = false
+            @error "Error during roundtrip" exception = (ex, stacktrace(catch_backtrace()))
+        finally
+            finallyClose(listenerTask)
+            finallyClose(connection)
+        end
+        worked
     end
-    worked
 end
 
 @testset "Transports" begin

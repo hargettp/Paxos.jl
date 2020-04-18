@@ -20,6 +20,7 @@ a `Connection` for sending or receiving messages with the recipient.
 """
 function connectTo(transport::TCPTransport, recipient)
     host, port = recipient
+    @debug "Connecting to $recipient over TCP"
     Sockets.connect(host, port)
 end
 
@@ -28,15 +29,21 @@ Listen for incoming connections and invoke the indicated function when they appe
 Returns a `Listener`
 """
 function listenOn(handler::Function, transport::TCPTransport, address)
+    @debug "Beginning to listen for TCP connections on $address"
     host, port = address
     @sync try
-        server = Sockets.listen(host, port)
+        server = Sockets.listen(port)
+        @debug "Waiting for TCP connections"
         while true
             client = Sockets.accept(server)
             @async handler(client)
         end
+        @debug "Finished waiting for TCP connections"
+    catch ex
+        printError("Error listening for TCP connections", ex)
     finally
         finallyClose(server)
+       @debug "Finished listening for TCP connections on $address"
     end
 end
 

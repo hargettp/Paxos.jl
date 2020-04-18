@@ -186,12 +186,17 @@ then invoke the handler with the `Messenger` as an argument. Close the messenger
 as soon as the connection exits.
 """
 function connection(handler::Function, transport::Transport, recipient)
-    conn = connectTo(transport, recipient)
-    messenger = Messenger(conn)
+    @debug "Beginning connection to $recipient"
     try
-        handler(messenger)
+        conn = connectTo(transport, recipient)
+        messenger = Messenger(conn)
+        try
+            handler(messenger)
+        finally
+            finallyClose(messenger)
+        end
     finally
-        finallyClose(messenger)
+        @debug "Finished connection to $recipient"
     end
 end
 

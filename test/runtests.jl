@@ -6,18 +6,20 @@ using Logging
 
 using Test
 
-function testRoundtrip(transport, greeting, response)
+function testRoundtrip(transport, address, greeting, response)
     worked = false
     @debug "Creating listener"
-    listenerTask = listener(transport, "test1") do messenger
+    listenerTask = listener(transport, address) do messenger
         for message in receivedMessages(messenger)
             sendMessage(messenger, "$response: $message")
         end
     end
+    @debug "Pausing for listener to be alive"
+    sleep(2)
     try
         @debug "Listener created"
         @debug "Connecting"
-        connection(transport, "test1") do messenger
+        connection(transport, address) do messenger
             @debug "Connected"
             @debug "Sending test message"
             sendMessage(messenger, greeting)
@@ -27,7 +29,7 @@ function testRoundtrip(transport, greeting, response)
         end
     catch ex
         worked = false
-        printError("Error trying to listen", ex)
+        printError("Error during roundtrip", ex)
     finally
         finallyClose(listenerTask)
         finallyClose(connection)
@@ -40,6 +42,5 @@ end
     @test typeof(memory()) == Paxos.Transports.MemoryTransport
     @test typeof(tcp()) == Paxos.Transports.TCPTransport
 
-    @test testRoundtrip(memory(), "hello", "Ciao! I heard your greeting")
-
+    @test testRoundtrip(memory(), "memoryTest1", "hello", "Ciao! I heard your greeting")
 end

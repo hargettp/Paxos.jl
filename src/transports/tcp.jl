@@ -7,6 +7,10 @@ using ..Utils
 struct TCPTransport <: Transport
 end
 
+struct TCPConnection <: Connection
+    socket::Sockets.TCPSocket
+end
+
 function tcp()
     TCPTransport()
 end
@@ -21,7 +25,7 @@ a `Connection` for sending or receiving messages with the recipient.
 function connectTo(transport::TCPTransport, recipient)
     host, port = recipient
     @debug "Connecting to $recipient over TCP"
-    Sockets.connect(host, port)
+    TCPConnection(Sockets.connect(host, port))
 end
 
 """
@@ -36,11 +40,9 @@ function listenOn(handler::Function, transport::TCPTransport, address)
         @debug "Waiting for TCP connections"
         while true
             client = Sockets.accept(server)
-            @async handler(client)
+            @async handler(TCPConnection(client))
         end
         @debug "Finished waiting for TCP connections"
-    catch ex
-        printError("Error listening for TCP connections", ex)
     finally
         finallyClose(server)
        @debug "Finished listening for TCP connections on $address"
@@ -50,13 +52,13 @@ end
 """
 Send a message on the indicated connection, using the specified Transport
 """
-function sendTo(connection::Sockets.TCPSocket, message)
+function sendTo(connection::TCPConnection, message)
     serialize(connection.socket, message)
 end
 
 """
 Receive a message over the indicated connection
 """
-function receiveFrom(connection::Sockets.TCPSocket)
-    deserialize(connection)
+function receiveFrom(connection::TCPConnection)
+    deserialize(connection.socket)
 end

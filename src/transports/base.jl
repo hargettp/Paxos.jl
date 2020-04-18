@@ -97,12 +97,6 @@ function Messenger(connection)
         end,
         errors,
     )
-    # sender = @task messageSender
-    # # bind(messenger.outbound, sender)
-    # receiver = @task messageReceiver
-    # # bind(messenger.inbound, receiver)
-    # schedule(sender, messenger)
-    # schedule(receiver, messenger)
     messenger
 end
 

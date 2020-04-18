@@ -38,9 +38,18 @@ function testRoundtrip(transport, address, greeting, response)
 end
 
 @testset "Transports" begin
+    @testset "Memory" begin
+        @test typeof(memory()) == Paxos.Transports.MemoryTransport
+        @test testRoundtrip(memory(), "memoryTest1", "hello", "Ciao! I heard your greeting")
+    end
 
-    @test typeof(memory()) == Paxos.Transports.MemoryTransport
-    @test typeof(tcp()) == Paxos.Transports.TCPTransport
-
-    @test testRoundtrip(memory(), "memoryTest1", "hello", "Ciao! I heard your greeting")
+    @testset "TCP" begin
+        @test typeof(tcp()) == Paxos.Transports.TCPTransport
+        @test testRoundtrip(
+            tcp(),
+            ("localhost", 8000),
+            "hello",
+            "Ciao! I heard your greeting",
+        )
+    end
 end

@@ -1,4 +1,5 @@
 using UUIDs
+using Base
 
 export memory
 

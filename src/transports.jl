@@ -5,14 +5,16 @@ export memory,
     Message,
     Transport,
     Connection,
+    Messenger,
     connectTo,
+    messengerTo,
     listenOn,
     sendTo,
     receivedMessages,
     sendMessage,
     connection,
     listener,
-    finallyClose
+    call
 
 include("./transports/base.jl")
 include("./transports/memory.jl")

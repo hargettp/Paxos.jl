@@ -1,6 +1,7 @@
 using Logging
 
 using ..Utils
+using Base
 
 """
 An abstract payload for sending data via a `Transport`
@@ -167,6 +168,14 @@ function Base.close(connection::Messenger)
 end
 
 """
+Connect to the recipient via the underlying transport and construct
+a `Messenger` with the resulting `Connection`
+"""
+function messengerTo(transport, recipient)
+    Messenger(connectTo(transport, recipient))
+end
+
+"""
 Create a `Connection` to the recepient and a `Messenger` to exchange messages,
 then invoke the handler with the `Messenger` as an argument. Close the messenger
 as soon as the connection exits.
@@ -174,8 +183,7 @@ as soon as the connection exits.
 function connection(handler::Function, transport::Transport, recipient)
     @debug "Beginning connection to $recipient"
     try
-        conn = connectTo(transport, recipient)
-        messenger = Messenger(conn)
+        messenger = messengerTo(transport, recipient)
         try
             handler(messenger)
         finally
@@ -218,4 +226,43 @@ struct ListenerClosedException <: Exception end
 
 function Base.close(listener::Listener)
     schedule(listener, ListenerClosedException(), error = true)
+end
+
+# -----------------
+
+"""
+Send the message through each of the messengers, but only allow
+`timeout` seconds for a response. Return all results received within
+the alloted time, if any.
+"""
+function call(messengers::Vector{Messenger}, timeout, message)
+    sz = length(messengers)
+    responses = Channel()
+    results = Vector()
+    try
+        bounded(timeout) do
+            for messenger in messengers
+                @async begin
+                    bounded(timeout) do
+                        sendMessage(messenger, message)
+                        response = take!(receivedMessages(messenger))
+                        put!(responses, response)
+                    end
+                end
+            end
+            for response in responses
+                push!(results, response)
+                if length(results) >= sz
+                    break
+                end
+            end
+        end
+    catch ex
+        if !isa(ex, TimeoutException)
+            rethrow()
+        end
+    finally
+        Base.close(responses)
+    end
+    results
 end

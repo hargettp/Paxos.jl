@@ -1,15 +1,22 @@
 module Utils
 
-export finallyClose, bounded, TimeoutException
+using Base
+export finallyClose, closeAll, bounded, TimeoutException
 
 """
 Close the closeable object, ignoring any exceptions that may result. 
 """
-function finallyClose(closeAble)
+function finallyClose(closeable)
     try
-        close(closeAble)
+        close(closeable)
     catch
         # ignore
+    end
+end
+
+function closeAll(closeables)
+    for closeable in closeables
+        finallyClose(closeable)
     end
 end
 
@@ -30,7 +37,9 @@ caller of this function.
 """
 function bounded(fn, timeout)
     result = Channel(1)
-    task = @async put!(result, fn())
+    task = @async begin
+        put!(result, fn())
+    end
     timer = @async begin
         sleep(timeout)
         schedule(task, TimeoutException(timeout),error=true)

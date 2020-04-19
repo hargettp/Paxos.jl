@@ -1,6 +1,6 @@
 include("support.jl")
 
-@testset "Transports" begin
+@testset CustomTestSet "Transports" begin
     @testset "TCP" begin
         @test typeof(tcp()) == Paxos.Transports.TCP.TCPTransport
         @test testRoundtrip(

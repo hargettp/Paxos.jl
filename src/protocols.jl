@@ -1,5 +1,6 @@
 using .Transports
 using .Transports.Common
+using .Types
 
 # Leader protocol
 

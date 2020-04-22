@@ -1,3 +1,7 @@
+module Types
+
+export Cluster, Request, Ballot, BallotNumber, Command, InstanceBallotNumbers, InstanceBallots, Request
+
 using UUIDs
 
 """
@@ -76,3 +80,4 @@ successive elements are for successively later instances
 """
 InstanceBallotNumbers = Set{BallotNumber}
 
+end

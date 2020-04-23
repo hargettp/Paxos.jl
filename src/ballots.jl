@@ -1,6 +1,6 @@
-module Types
+module Ballots
 
-export Cluster, Request, Ballot, BallotNumber, Command, InstanceBallotNumbers, InstanceBallots, Request
+export Ballot, BallotNumber, Command, InstanceBallotNumbers, InstanceBallots, Request, NodeID
 
 using UUIDs
 
@@ -33,13 +33,7 @@ function after(left, right)
   before(right, left)
 end
 
-abstract type NodeID end
-
-struct Cluster
-  id::UUID
-  members::Set{NodeID}
-  followers::Set{NodeID}
-end
+NodeID = UUID
 
 struct Command
   op
@@ -47,7 +41,7 @@ end
 
 struct RequestID
   id::UUID
-  clientID::UUID
+  clientID::NodeID
   clientSequenceNumber::UInt128
 end
 
@@ -62,6 +56,7 @@ struct BallotNumber
 end
 
 struct Ballot
+  leaderId::NodeID
   number::BallotNumber
   request::Request
 end

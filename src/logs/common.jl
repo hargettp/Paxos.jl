@@ -1,11 +1,13 @@
 module Common
 
-using ...Types
+using ...Ballots
 
   """
   `open` - The entry is new, and has not been populated by any ballot activity
 
-  `requested` - The entry corresponds to a local request ready to be proposed.
+  `requested` - The entry corresponds to a local request ready to be prepared.
+
+  `prepared` - The entry was discovered through an initial `Prepare` phase
 
   `promised`- Once promised, only requests with a higher ballot can replace
   the request in the entry
@@ -17,31 +19,30 @@ using ...Types
   """
 @enum LogEntryState begin
   open
+  requested
+  prepared
   promised
   accepted
   applied
 end
 
-abstract type AbstractLogEntry end
-
-struct RequestedLogEntry
+"""
+A `LogEntry` captures the state of a `Command` to apply to a `Log`s external
+model or state machine. Conveniently, a log entry has a structure suitable
+for use as a "ledger" for 1 instance of the Paxos algorithm: as ballots
+for that instance progress the entry contains the state needed for a
+leader, follower, or learner to move towards an outcome or final ballot
+containing the chosen command for application.
+"""
+struct LogEntry
+  state::LogEntryState
   ballot::Ballot
 end
 
-struct PromisedLogEntry <: AbstractLogEntry
-  ballotNumber::BallotNumber
-end
-
-struct AcceptedLogEntry <: AbstractLogEntry
-  request::Ballot
-end
-
-struct AppliedLogEntry
-  ballot::Ballot
-end
-
-LogEntry = Union{RequestedLogEntry, PromisedLogEntry, AcceptedLogEntry, AppliedLogEntry}
-
+"""
+A log is a record of `Command`s to apply to an external data structure or
+state machine. A log is structured as a sequence of `LogEntry` objects.
+"""
 struct Log
   """
   Index of earliest entry in log

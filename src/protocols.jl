@@ -1,6 +1,14 @@
+using UUIDs
+
 using .Transports
 using .Transports.Common
-using .Types
+using .Ballots
+
+struct Cluster
+  id::UUID
+  members::Set{NodeID}
+  learners::Set{NodeID}
+end
 
 # Leader protocol
 

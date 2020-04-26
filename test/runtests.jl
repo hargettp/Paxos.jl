@@ -27,6 +27,11 @@ function Test.record(ts::CustomTestSet, res::Test.Fail)
     Test.record(ts.delegate, res)
 end
 
+function Test.record(ts::CustomTestSet, err::Test.Error)
+    printstyled(stdout, "E"; bold = true, color=Base.error_color())
+    Test.record(ts.delegate, err)
+end
+
 function Test.record(ts::CustomTestSet, res::Test.Pass)
     printstyled(stdout, "."; bold = true, color=:green)
     Test.record(ts.delegate, res)
@@ -38,3 +43,4 @@ function Test.finish(ts::CustomTestSet)
 end
 
 include("transports/tests.jl")
+include("./configurations.jl")

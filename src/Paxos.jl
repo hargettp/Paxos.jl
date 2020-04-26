@@ -2,6 +2,7 @@ module Paxos
 
   include("./utils.jl")
   include("./ballots.jl")
+  include("./configurations.jl")
   include("./transports.jl")
   include("./logs.jl")
   include("./protocols.jl")

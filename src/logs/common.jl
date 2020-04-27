@@ -7,7 +7,11 @@ export Log,
     entryPrepared,
     entryPromised,
     entryAccepted,
-    entryApplied
+    entryApplied,
+    nextInstance,
+    addEntry,
+    ballotNumber,
+    logEntry
 
 using ...Ballots
 
@@ -52,22 +56,22 @@ end
 A log is a record of `Command`s to apply to an external data structure or
 state machine. A log is structured as a sequence of `LogEntry` objects.
 """
-struct Log
+mutable struct Log
     """
     The entries in the log, accessed by their index. The reason for using
     a `Dict` instead of an array (with a base offset) is to allow for a potentially
     sparse list of entries.
     """
-    entries::Dict{Integer,LogEntry}
+    entries::Dict{InstanceID,LogEntry}
 
     """
     Index of earliest entry in log
     """
-    earliestIndex::Integer
+    earliestIndex::InstanceID
     """
     Index of latest entry in log
     """
-    latestIndex::Union{Integer,Nothing}
+    latestIndex::Union{InstanceID,Nothing}
     """
     Index of latest applied entry, or nothing if none applied yet
     """
@@ -97,6 +101,10 @@ function Base.isready(log::Log)
     end
 end
 
+function Base.length(log::Log)
+  length(log.entries)
+end
+
 """
 Return the next unused instance (actually, the next unused index) in the log
 """
@@ -117,6 +125,20 @@ function apply(fn::Function, log::Log, state)
         fn(state, entry.requst.command)
         log.latestApplied = nextIndex
     end
+end
+
+"""
+Create a ballot number for an instance
+"""
+function ballotNumber(log::Log, instanceID=nextInstance(log), sequenceNumber=0)
+  BallotNumber(instanceID, sequenceNumber)
+end
+
+"""
+Create a `LogEntry` for a given `Ballot`
+"""
+function logEntry(ballot::Ballot, state=entryRequested)
+  LogEntry(state, ballot)
 end
 
 end

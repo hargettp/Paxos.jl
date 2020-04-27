@@ -1,8 +1,16 @@
 module Ballots
 
 export Ballot,
-    BallotNumber, Command, InstanceBallotNumbers, InstanceBallots, Request, NodeID, nodeid
-
+    BallotNumber,
+    Command,
+    InstanceBallotNumbers,
+    InstanceBallots,
+    InstanceID,
+    Request,
+    RequestID,
+    NodeID,
+    nodeid,
+    SequenceNumber
 
 using UUIDs
 
@@ -35,6 +43,8 @@ end
 
 NodeID = UUID
 
+SequenceNumber = UInt128
+
 """
 Return a new node ID
 """
@@ -47,7 +57,7 @@ end
 struct RequestID
     id::UUID
     clientID::NodeID
-    clientSequenceNumber::UInt128
+    clientSequenceNumber::SequenceNumber
 end
 
 struct Request
@@ -57,7 +67,7 @@ end
 
 struct BallotNumber
     instanceID::InstanceID
-    sequenceNumber::UInt128
+    sequenceNumber::SequenceNumber
 end
 
 struct Ballot

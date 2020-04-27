@@ -1,0 +1,13 @@
+using Paxos.Ballots
+using Paxos.Clients
+using Paxos.Logs.Common
+
+using UUIDs
+
+function logAddEntry(log=Log())
+  client = Client()
+  req = request(client, Command(:inc))
+  ballot = Ballot(nodeid(), ballotNumber(log),req)
+  addEntry(log, logEntry(ballot))
+  log
+end

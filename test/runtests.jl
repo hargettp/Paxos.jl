@@ -42,6 +42,6 @@ function Test.finish(ts::CustomTestSet)
     Test.finish(ts.delegate)
 end
 
-# include("transports/tests.jl")
-# include("./configurations.jl")
+include("transports/tests.jl")
+include("./configurations.jl")
 include("logs/tests.jl")

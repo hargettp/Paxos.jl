@@ -1,29 +1,38 @@
 module Common
 
+export Log,
+    LogEntryState,
+    entryOpen,
+    entryRequested,
+    entryPrepared,
+    entryPromised,
+    entryAccepted,
+    entryApplied
+
 using ...Ballots
 
-  """
-  `open` - The entry is new, and has not been populated by any ballot activity
+"""
+`open` - The entry is new, and has not been populated by any ballot activity
 
-  `requested` - The entry corresponds to a local request ready to be prepared.
+`requested` - The entry corresponds to a local request ready to be prepared.
 
-  `prepared` - The entry was discovered through an initial `Prepare` phase
+`prepared` - The entry was discovered through an initial `Prepare` phase
 
-  `promised`- Once promised, only requests with a higher ballot can replace
-  the request in the entry
+`promised`- Once promised, only requests with a higher ballot can replace
+the request in the entry
 
-  `accepted` - An accepted entry will eventually by accepted by all members of the cluster
+`accepted` - An accepted entry will eventually by accepted by all members of the cluster
 
-  `applied` - The underlying command in the entry's request has been applied
-  to application state
-  """
+`applied` - The underlying command in the entry's request has been applied
+to application state
+"""
 @enum LogEntryState begin
-  open
-  requested
-  prepared
-  promised
-  accepted
-  applied
+    entryOpen
+    entryRequested
+    entryPrepared
+    entryPromised
+    entryAccepted
+    entryApplied
 end
 
 """
@@ -35,8 +44,8 @@ leader, follower, or learner to move towards an outcome or final ballot
 containing the chosen command for application.
 """
 struct LogEntry
-  state::LogEntryState
-  ballot::Ballot
+    state::LogEntryState
+    ballot::Ballot
 end
 
 """
@@ -44,26 +53,70 @@ A log is a record of `Command`s to apply to an external data structure or
 state machine. A log is structured as a sequence of `LogEntry` objects.
 """
 struct Log
-  """
-  Index of earliest entry in log
-  """
-  earliestIndex::Int
-  """
-  Index of latest entry in log
-  """
-  latestIndex::Int
-  """
-  Index of latest applied entry, or nothing if none applied yet
-  """
-  latestApplied::Int
-  entries::Dict{Int,LogEntry}
+    """
+    The entries in the log, accessed by their index. The reason for using
+    a `Dict` instead of an array (with a base offset) is to allow for a potentially
+    sparse list of entries.
+    """
+    entries::Dict{Integer,LogEntry}
+
+    """
+    Index of earliest entry in log
+    """
+    earliestIndex::Integer
+    """
+    Index of latest entry in log
+    """
+    latestIndex::Union{Integer,Nothing}
+    """
+    Index of latest applied entry, or nothing if none applied yet
+    """
+    latestApplied::Union{Integer,Nothing}
 end
 
-Log() = Log(nothing, nothing, nothing,Dict())
+Log() = Log(Dict(), 0, nothing, nothing)
+
+function Base.isempty(log::Log)
+    isempty(log.entries)
+end
+
+"""
+Return true if the log is not empty and has unapplied entries, false
+otherwise
+"""
+function Base.isready(log::Log)
+    return if isempty(log)
+        false
+    else
+        if log.latestApplied == nothing
+            false
+        else
+            (log.latestApplied < log.latestIndex) &&
+            log.latestApplied.state == entryAccepted
+        end
+    end
+end
+
+"""
+Return the next unused instance (actually, the next unused index) in the log
+"""
+function nextInstance(log::Log)
+  (log.latestIndex == nothing) ? log.earliestIndex : (log.latestIndex + 1)
+end
 
 function addEntry(log::Log, entry::LogEntry)
-  nextIndex = log.latestIndex += 1
-  log.entries[nextIndex] = entry
+    nextIndex = nextInstance(log)
+    log.entries[nextIndex] = entry
+    log.latestIndex = nextIndex
+end
+
+function apply(fn::Function, log::Log, state)
+    while isready(log)
+        nextIndex = (log.latestApplied == nothing) ? 0 : (log.latestApplied + 1)
+        entry = log.entries[nextIndex]
+        fn(state, entry.requst.command)
+        log.latestApplied = nextIndex
+    end
 end
 
 end

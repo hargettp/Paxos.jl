@@ -15,9 +15,7 @@ choosing a ballot by consensus.
 The ordering is intended to support ordering instances (and their chosen ballot)
 into an ordered log of chosen commands.
 """
-struct InstanceID
-    sequenceNumber::UInt128
-end
+InstanceID = UInt128
 
 """
 Return `true` if the `left` id refers to an instance that occurs earlier

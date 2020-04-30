@@ -12,7 +12,8 @@ export Message,
     sendMessage,
     connection,
     listener,
-    call
+    call,
+    gcall
 
 using Logging
 
@@ -247,11 +248,24 @@ end
 # -----------------
 
 """
-Send the message through each of the messengers, but only allow
+Send a message through the specified `Messenger`, and wait up to `timeout`
+seconds for a response. If no response received in the alloted time, then
+throw a `TimeoutException`; otherwise, return the reeived response.
+"""
+function call(messenger::Messenger, timeout, message)
+    bounded(timeout) do
+        sendMessage(messenger, message)
+        response = take!(receivedMessages(messenger))
+        return response
+    end
+end
+
+"""
+Send the message through each of the `Messenger`s, but only allow
 `timeout` seconds for a response. Return all results received within
 the alloted time, if any.
 """
-function call(messengers::Vector{Messenger}, timeout, message)
+function gcall(messengers::Vector{Messenger}, timeout, message)
     sz = length(messengers)
     responses = Channel()
     results = Vector()
@@ -259,11 +273,8 @@ function call(messengers::Vector{Messenger}, timeout, message)
         bounded(timeout) do
             for messenger in messengers
                 @async begin
-                    bounded(timeout) do
-                        sendMessage(messenger, message)
-                        response = take!(receivedMessages(messenger))
-                        put!(responses, response)
-                    end
+                    response = call(messenger, timeout, message)
+                    put!(responses, response)
                 end
             end
             for response in responses

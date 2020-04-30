@@ -64,7 +64,7 @@ function calls(fn, transport, addressesAndtimeouts, overallTimeout, greeting)
                 messenger = messengerTo(transport, address)
                 push!(messengers, messenger)
             end
-            responses = call(messengers, overallTimeout, greeting)
+            responses = gcall(messengers, overallTimeout, greeting)
             fn(responses)
         catch ex
             @error "Exception caught making calls" exception=(ex, stacktrace(catch_backtrace()))

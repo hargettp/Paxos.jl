@@ -6,4 +6,5 @@ include("./support.jl")
   @test isempty(logAddEntry()) == false
   @test length(logAddEntry()) == 1
   @test logAddEntry().latestApplied == nothing
+  
 end

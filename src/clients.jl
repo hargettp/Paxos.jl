@@ -4,6 +4,7 @@ export Client, requestID, request
 
 using UUIDs
 using ..Ballots
+using ..Nodes
 
 mutable struct Client
   id::NodeID

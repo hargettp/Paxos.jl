@@ -1,6 +1,7 @@
 using Paxos.Ballots
 using Paxos.Clients
 using Paxos.Logs.Common
+using Paxos.Nodes
 
 using UUIDs
 

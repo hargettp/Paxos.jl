@@ -1,5 +1,6 @@
 using Paxos.Ballots
 using Paxos.Configurations
+using Paxos.Nodes
 
 @testset CustomTestSet "Configurations" begin
 

@@ -3,6 +3,7 @@ using UUIDs
 using .Transports
 using .Transports.Common
 using .Ballots
+using .Nodes
 
 struct Cluster
   id::UUID

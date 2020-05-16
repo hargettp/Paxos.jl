@@ -3,6 +3,7 @@ module Configurations
 export quorum, quorumSize, configuration, addMember, removeMember
 
 using ..Ballots
+using ..Nodes
 
 struct OrdinaryConfiguration
   """

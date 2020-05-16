@@ -8,11 +8,11 @@ export Ballot,
     InstanceID,
     Request,
     RequestID,
-    NodeID,
-    nodeid,
     SequenceNumber
 
 using UUIDs
+
+using ..Nodes
 
 """
 An `InstanceID` uniquely names a specific instance of the Paxos algorithm.
@@ -41,14 +41,7 @@ function after(left, right)
     before(right, left)
 end
 
-NodeID = UUID
-
 SequenceNumber = UInt128
-
-"""
-Return a new node ID
-"""
-nodeid() = uuid4()
 
 struct Command
     op::Any

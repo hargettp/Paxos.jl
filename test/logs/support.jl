@@ -7,7 +7,7 @@ using UUIDs
 
 function logAddEntry(log=Log())
   client = Client()
-  req = request(client, Command(:inc))
+  req = request(client, Operation(:inc))
   ballot = Ballot(nodeid(), ballotNumber(log),req)
   addEntry(log, logEntry(ballot))
   log

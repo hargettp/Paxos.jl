@@ -6,6 +6,7 @@ export Ballot,
     InstanceBallotNumbers,
     InstanceBallots,
     InstanceID,
+    Operation,
     Request,
     RequestID,
     SequenceNumber
@@ -13,6 +14,7 @@ export Ballot,
 using UUIDs
 
 using ..Nodes
+using ..Configurations
 
 """
 An `InstanceID` uniquely names a specific instance of the Paxos algorithm.
@@ -43,9 +45,11 @@ end
 
 SequenceNumber = UInt128
 
-struct Command
-    op::Any
+struct Operation
+    action::Any
 end
+
+Command = Union{Operation,Configuration}
 
 struct RequestID
     id::UUID

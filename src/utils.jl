@@ -1,22 +1,15 @@
 module Utils
 
 using Base
-export finallyClose, closeAll, bounded, TimeoutException
-
-"""
-Close the closeable object, ignoring any exceptions that may result. 
-"""
-function finallyClose(closeable)
-    try
-        close(closeable)
-    catch
-        # ignore
-    end
-end
+export closeAll, bounded, TimeoutException
 
 function closeAll(closeables)
     for closeable in closeables
-        finallyClose(closeable)
+        try
+            close(closeable)
+        catch ex
+            @error "Error during close" exception = (ex, stacktrace(catch_backtrace()))            
+        end
     end
 end
 

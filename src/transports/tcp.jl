@@ -49,7 +49,7 @@ function Common.listenOn(handler::Function, transport::TCPTransport, address)
         end
         @debug "Finished waiting for TCP connections"
     finally
-        finallyClose(server)
+        close(server)
        @debug "Finished listening for TCP connections on $address"
     end
 end
@@ -65,7 +65,15 @@ end
 Receive a message over the indicated connection
 """
 function Common.receiveFrom(connection::TCPConnection)
-    deserialize(connection.socket)
+    try
+        deserialize(connection.socket)
+    catch ex
+        if isa(ex, EOFError)
+            @debug "Connection closed"
+        else
+            rethrow()
+        end
+    end
 end
 
 end

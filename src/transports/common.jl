@@ -4,6 +4,7 @@ export Message,
     Transport,
     Connection,
     Messenger,
+    Listener,
     connectTo,
     messengerTo,
     listenOn,
@@ -84,7 +85,7 @@ until closed. In addition to stopping the tasks for transmission / reception, cl
 the messenger also closes the underlying connection.
 """
 struct Messenger{T}
-    connection::T
+    resource::T
     inbound::Channel
     outbound::Channel
     errors::Channel
@@ -116,20 +117,18 @@ function messageReceiver(connection::Connection, inbound::Channel, errors::Chann
     try
         @debug "Preparing to receive messages"
         while true
-            try
-                # Receive using the connection's transport
-                @debug "Receiving message over transport connection: $connection"
-                msg = receiveFrom(connection)
-                put!(inbound, msg)
-                @debug "Message $msg received over transport connection: $connection"
-            catch ex
-                put!(errors, (missing, ex))
-                @error "Error receiving message" exception =
-                    (ex, stacktrace(catch_backtrace()))
-            end
+            # Receive using the connection's transport
+            @debug "Receiving message over transport connection: $connection"
+            msg = receiveFrom(connection)
+            put!(inbound, msg)
+            @debug "Message $msg received over transport connection: $connection"
         end
     catch ex
-        @error "Error receiving messages" exception = (ex, stacktrace(catch_backtrace()))
+        if isa(ex, InvalidStateException) && (ex.state == :closed)
+            @debug "Inbound closed"
+        else
+            @error "Error receiving messages" exception = (ex, stacktrace(catch_backtrace()))
+        end
     finally
         @debug "Finished receive messages"
     end
@@ -143,19 +142,17 @@ function messageSender(connection::Connection, outbound::Channel, errors::Channe
     try
         @debug "Preparing to deliver messages"
         for msg in outbound
-            try
-                # Send using the connection's transport
-                @debug "Delivering message $msg over transport connection"
-                sendTo(connection, msg)
-                @debug "Message $msg delivered"
-            catch ex
-                put!(errors, (msg, ex))
-                @error "Error delivering message" exception =
-                    (ex, stacktrace(catch_backtrace()))
-            end
+            @debug "Delivering message $msg over transport connection"
+            sendTo(connection, msg)
+            @debug "Message $msg delivered"
         end
     catch ex
-        @error "Error delivering messages" exception = (ex, stacktrace(catch_backtrace()))
+        if (isa(ex, InvalidStateException) && (ex.state == :closed)) ||
+                isa(ex, Base.IOError)
+            @debug "Outbounbd closed"
+        else
+            @error "Error delivering messages" exception = (ex, stacktrace(catch_backtrace()))
+        end
     finally
         @debug "Finished delivering messages"
     end
@@ -166,7 +163,15 @@ Enqueue message for sending over the transport connection
 """
 function sendMessage(messenger::Messenger, message)
     @debug "Enqueuing message to send"
-    put!(messenger.outbound, message)
+    try
+        put!(messenger.outbound, message)
+    catch ex
+        if (isa(ex, InvalidStateException) && (ex.state == :closed))
+            @debug "Sending channel closed"
+        else
+            rethrow()
+        end
+    end
     @debug "Message enqueued"
 end
 
@@ -178,10 +183,10 @@ function receivedMessages(messenger::Messenger)
 end
 
 function Base.close(connection::Messenger)
-    finallyClose(connection.resource)
-    finallyClose(connection.outbound)
-    finallyClose(connection.inbound)
-    finallyClose(connection.errors)
+    close(connection.resource)
+    close(connection.outbound)
+    close(connection.inbound)
+    close(connection.errors)
 end
 
 """
@@ -204,7 +209,7 @@ function connection(handler::Function, transport::Transport, recipient)
         try
             handler(messenger)
         finally
-            finallyClose(messenger)
+            close(messenger)
         end
     finally
         @debug "Finished connection to $recipient"
@@ -228,7 +233,7 @@ function listener(handler::Function, transport::Transport, address)
                 @error "Error while handling" exception =
                     (ex, stacktrace(catch_backtrace()))
             finally
-                finallyClose(messenger)
+                close(messenger)
                 @debug "Finished handling a connection"
             end
         end

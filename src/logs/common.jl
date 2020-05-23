@@ -11,7 +11,10 @@ export Log,
     entryApplied,
     nextInstance,
     addEntry,
-    nextBallotNumber!
+    nextBallotNumber!,
+    votes!,
+    promises!,
+    accepted!
 
 using ...Ballots
 
@@ -62,7 +65,7 @@ LogEntry(request::Request, state=entryRequested) = LogEntry(state, 0, request, R
 """
 Create an open `LogEntry` with no `Request
 """
-LogEntry() = LogEntry(entryOpen,0,nothing,ReentrantLock())
+LogEntry(sequenceNumber::SequenceNumber) = LogEntry(entryOpen,sequenceNumber,nothing,ReentrantLock())
 
 function withEntry(fn::Function, entry::LogEntry)
     try
@@ -159,16 +162,59 @@ function nextBallotNumber!(log::Log, instanceID=nextInstance(log))
 end
 
 """
-Compute votes for the specified ballot numbers, based on
-information in the log for each instance
+Compute a ballot number corresponding to the highest sequence number seen
+for each instance. This is useful for the "propose" phase of the protocol.
 """
-function votes(log::Log, ballotNumbers::Vector{BallotNumber})
+function votes!(log::Log, ballotNumbers::Vector{BallotNumber})
     map(ballotNumbers) do ballotNumber
         instanceID = ballotNumber.instanceID
-        entry = get!(log.entries,instanceID,LogEntry())
-        max(entry.sequenceNumber, ballotNumber.sequenceNumber)
+        entry = get!(log.entries,instanceID,LogEntry(ballotNumber.sequenceNumber))
+        BallotNumber(instanceID,max(entry.sequenceNumber, ballotNumber.sequenceNumber))
     end
 end
 
+function promises!(log::Log, ballots::Vector{Ballot})
+    promises = map(ballots) do ballot
+        instanceID = ballot.number.instanceID
+        entry = get!(log.entries,instanceID,LogEntry(ballot.number.sequenceNumber))
+        withEntry(entry) do
+            if(entry.sequenceNumber < ballot.number.sequenceNumber)
+                entry.state = entryPromised
+                entry.sequenceNumber = ballot.number.sequenceNumber
+                # TODO think about configuration changes
+                entry.request = ballot.request
+                BallotNumber(instanceID, entry.sequenceNumber)
+            else
+                nothing
+            end
+        end
+    end
+    # if we've already seen a sequence number, we won't promise again
+    filter(promises) do promise
+        promise != nothing
+    end
+end
+
+function accepted!(log::Log,ballotNumbers::Vector{BallotNumber})
+    accepted = map(ballotNumbers) do ballotNumber
+        instanceID = ballotNumber.instanceID
+        entry = get!(log.entries,instanceID,LogEntry(ballotNumber.sequenceNumber))
+        withEntry(entry) do
+            # TOOO hmmm, should we check leader ID who generated the ballot too?
+            # TODO if the entry state isn't accepted, we may have missed some messages
+            # -- so should we go into a refetch mode?
+            if  entry.sequenceNumber == ballotNumber.sequenceNumber && entry.state == entryPromised
+                entry.state = entryAccepted
+                BallotNumber(instanceID, entry.sequenceNumber)
+            else
+                nothing
+            end
+        end
+    end
+    # if we've already seen a sequence number, we won't accept again
+    filter(accepted) do acceptance
+        acceptance != nothing
+    end
+end
 
 end

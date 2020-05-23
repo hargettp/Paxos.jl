@@ -21,8 +21,6 @@ function requestID(client::Client)
     )
 end
 
-function request(client::Client,op::Operation)
-  Request(requestID(client), op)
-end
+request(client::Client,op::Operation) = Request(requestID(client), op)
 
 end

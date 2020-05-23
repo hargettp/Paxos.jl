@@ -2,6 +2,7 @@ module Common
 
 export Log,
     LogEntryState,
+    LogEntry,
     entryOpen,
     entryRequested,
     entryPrepared,
@@ -10,8 +11,7 @@ export Log,
     entryApplied,
     nextInstance,
     addEntry,
-    ballotNumber,
-    logEntry
+    nextBallotNumber!
 
 using ...Ballots
 
@@ -47,9 +47,30 @@ for that instance progress the entry contains the state needed for a
 leader, follower, or learner to move towards an outcome or final ballot
 containing the chosen command for application.
 """
-struct LogEntry
+mutable struct LogEntry
     state::LogEntryState
-    ballot::Ballot
+    sequence::SequenceNumber
+    request::Union{Request,Nothing}
+    lock::ReentrantLock
+end
+
+"""
+Create a `LogEntry` for a given `Request`
+"""
+LogEntry(request::Request, state=entryRequested) = LogEntry(state, 0, request, ReentrantLock())
+
+"""
+Create an open `LogEntry` with no `Request
+"""
+LogEntry() = LogEntry(entryOpen,0,nothing,ReentrantLock())
+
+function withEntry(fn::Function, entry::LogEntry)
+    try
+        lock(entry.lock)
+        fn(entry)
+    finally
+        unlock(entry.lock)
+    end
 end
 
 """
@@ -130,15 +151,24 @@ end
 """
 Create a ballot number for an instance
 """
-function ballotNumber(log::Log, instanceID=nextInstance(log), sequenceNumber=0)
-  BallotNumber(instanceID, sequenceNumber)
+function nextBallotNumber!(log::Log, instanceID=nextInstance(log))
+    withEntry(log.entries[instanceID]) do entry
+        entry.sequenceNumber += 1
+        BallotNumber(instanceID, entry.sequenceNumber)
+    end
 end
 
 """
-Create a `LogEntry` for a given `Ballot`
+Compute votes for the specified ballot numbers, based on
+information in the log for each instance
 """
-function logEntry(ballot::Ballot, state=entryRequested)
-  LogEntry(state, ballot)
+function votes(log::Log, ballotNumbers::Vector{InstanceBallotNumbers})
+    map(ballotNumbers) do ballotNumber
+        instanceID = ballotNumber.instanceID
+        entry = get!(log.entries,instanceID,LogEntry())
+        max(entry.sequenceNumber, ballotNumber.sequenceNumber)
+    end
 end
+
 
 end

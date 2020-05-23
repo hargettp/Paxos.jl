@@ -3,6 +3,8 @@ module Common
 export Message,
     Transport,
     Connection,
+    Connections,
+    connectAll,
     Messenger,
     Listener,
     connectTo,
@@ -216,6 +218,38 @@ function connection(handler::Function, transport::Transport, recipient)
     end
 end
 
+struct Connections
+    transport::Transport
+    messengers::Dict{Any,Messenger}
+end
+
+function Base.getindex(connections::Connections,address)
+    get(connections.messengers,address,messengerTo(connections.transport,address))
+end
+
+Connections(transport::Transport) = Connections(transport,Dict{Any,Messenger}())
+
+"""
+Asynchronously connect to as many destination addresses as possible, 
+ignoring exceptions if encountered
+"""
+function connectAll(connections::Connections, addresses, timeout)
+    @sync bounded(timeout) do
+        for address in addresses
+            @async bounded(timeout) do
+                if !haskey(connections, address)
+                    try
+                        connections[address] = connectTo(connections.transport, address)
+                    catch ex
+                        @error "Error connecting to all" exception = (ex, stacktrace(catch_backtrace()))            
+                    end
+                end
+            end
+        end
+    end
+    connections
+end
+
 """
 Create a listener on the underlying transport at the indicated address,
 invoking the handler for each `Connection` discveroed. A listner should be `close`d
@@ -230,8 +264,12 @@ function listener(handler::Function, transport::Transport, address)
             try
                 handler(messenger)
             catch ex
-                @error "Error while handling" exception =
-                    (ex, stacktrace(catch_backtrace()))
+                if isa(ex, ListenerClosedException)
+                    @debug "Closing listener"
+                else
+                    @error "Error while handling" exception =
+                        (ex, stacktrace(catch_backtrace()))
+                end
             finally
                 close(messenger)
                 @debug "Finished handling a connection"
@@ -270,7 +308,7 @@ Send the message through each of the `Messenger`s, but only allow
 `timeout` seconds for a response. Return all results received within
 the alloted time, if any.
 """
-function gcall(messengers::Vector{Messenger}, timeout, message)
+function gcall(messengers, timeout, message)
     sz = length(messengers)
     responses = Channel()
     results = Vector()

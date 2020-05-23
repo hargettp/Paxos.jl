@@ -1,47 +1,67 @@
+module Protocols
+
 using UUIDs
 
-using .Transports
-using .Transports.Common
-using .Ballots
-using .Nodes
+export Cluster, prepare, propose, accept, onPrepare, onPropose, onAccept
 
-struct Cluster
-  id::UUID
-  members::Set{NodeID}
-  learners::Set{NodeID}
+# using .Transports
+using ..Transports.Common
+using ..Ballots
+using ..Nodes
+using ..Configurations
+
+mutable struct Cluster
+  timeout::Int
+  configuration::Configuration
+  connections::Connections
+end
+
+"""
+Perform a `gcall` against all members of the cluster, creating connections
+as needed (and as available), if not already present
+"""
+function pcall(cluster::Cluster, msg)
+  connections = connectAll(cluster.connections, memberAddresses(cluster.configuration), cluster.timeout)
+  gcall(values(connections),cluster.timeout,msg)
 end
 
 # Leader protocol
 
-function prepare(transport, cluster::Cluster, request::Request)
+function prepare(cluster::Cluster, timeout, ballotNumbers::Vector{InstanceBallotNumbers})
+  msg = PrepareMessage(ballotNumbers)
+  pcall(cluster,msg)
 end
 
-function propose(transport, cluster::Cluster, request::Request)
+function propose(cluster::Cluster, ballots::Vector{InstanceBallots})
+  msg = ProposeMessage(ballots)
+  pcall(cluster,msg)
 end
 
-function accept(transport, cluster::Cluster, request::Request)
+function accept(cluster::Cluster, ballotNumbers::Vector{InstanceBallotNumbers})
+  msg = AcceptMessage(ballotNumbers)
+  pcall(cluster,msg)
 end
 
 # Follower protocol
 
-function onPrepare(transport, cluster::Cluster, ballot::Ballot)
+function onPrepare(cluster::Cluster, ballotNumbers::Vector{InstanceBallotNumbers})
 end
 
-function onPropose(transport, cluster::Cluster, ballot::Ballot)
+function onPropose(cluster::Cluster, ballots::Vector{InstanceBallots})
 end
 
-function onAccept(transport, cluster::Cluster, ballot::Ballot)
+function onAccept(cluster::Cluster, ballotNumbers::Vector{InstanceBallotNumbers})
 end
 
 
 # Client protocol
 
-function request(transport, cluster::Cluster, command::Command)
+function request(cluster::Cluster, command::Command)
 end
 
 # Server protocol
 
-function onRequest(transport, cluster::Cluster, command::Command)
+function onRequest(cluster::Cluster, command::Command)
 end
 
 # Messages
@@ -89,4 +109,6 @@ PaxosMessage = Union{
 struct Connection
   sender::Channel{PaxosMessage}
   receiver::Channel{PaxosMessage}
+end
+
 end

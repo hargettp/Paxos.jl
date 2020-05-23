@@ -8,7 +8,7 @@ using UUIDs
 function logAddEntry(log=Log())
   client = Client()
   req = request(client, Operation(:inc))
-  ballot = Ballot(nodeid(), ballotNumber(log),req)
-  addEntry(log, logEntry(ballot))
+  ballot = Ballot(nodeid(), BallotNumber(nextInstance(log), 0), req)
+  addEntry(log, LogEntry(req))
   log
 end

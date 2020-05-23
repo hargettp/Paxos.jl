@@ -1,7 +1,7 @@
 module Utils
 
 using Base
-export closeAll, bounded, TimeoutException
+export closeAll, readAvailable, bounded, TimeoutException
 
 function closeAll(closeables)
     for closeable in closeables
@@ -11,6 +11,18 @@ function closeAll(closeables)
             @error "Error during close" exception = (ex, stacktrace(catch_backtrace()))            
         end
     end
+end
+
+"""
+Reads all available messages on the `Channel`, returning an array
+"""
+function readAvailable(channel::Channel)
+    messages = []
+    while isready(channel)
+        message = take!(channel)
+        push!(messages, message)
+    end
+    messages
 end
 
 """

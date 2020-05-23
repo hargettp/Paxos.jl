@@ -162,7 +162,7 @@ end
 Compute votes for the specified ballot numbers, based on
 information in the log for each instance
 """
-function votes(log::Log, ballotNumbers::Vector{InstanceBallotNumbers})
+function votes(log::Log, ballotNumbers::Vector{BallotNumber})
     map(ballotNumbers) do ballotNumber
         instanceID = ballotNumber.instanceID
         entry = get!(log.entries,instanceID,LogEntry())

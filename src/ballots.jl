@@ -3,8 +3,6 @@ module Ballots
 export Ballot,
     BallotNumber,
     Command,
-    InstanceBallotNumbers,
-    InstanceBallots,
     InstanceID,
     Operation,
     Request,
@@ -72,19 +70,5 @@ struct Ballot
     number::BallotNumber
     request::Request
 end
-
-"""
-A data structure for containing a sequence of ballots, where
-each element in the sequence is a ballot for a specific instance;
-successive elements are for successively later instances
-"""
-InstanceBallots = Dict{BallotNumber,Ballot}
-
-"""
-A data structure for containing a sequence of ballot numbers, where
-each element in the sequence is a ballot number for a specific instance;
-successive elements are for successively later instances
-"""
-InstanceBallotNumbers = Set{BallotNumber}
 
 end

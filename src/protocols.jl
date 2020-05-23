@@ -27,30 +27,30 @@ end
 
 # Leader protocol
 
-function prepare(cluster::Cluster, timeout, ballotNumbers::Vector{InstanceBallotNumbers})
+function prepare(cluster::Cluster, timeout, ballotNumbers::Vector{BallotNumber})
   msg = PrepareMessage(ballotNumbers)
   pcall(cluster,msg)
 end
 
-function propose(cluster::Cluster, ballots::Vector{InstanceBallots})
+function propose(cluster::Cluster, ballots::Vector{Ballot})
   msg = ProposeMessage(ballots)
   pcall(cluster,msg)
 end
 
-function accept(cluster::Cluster, ballotNumbers::Vector{InstanceBallotNumbers})
+function accept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
   msg = AcceptMessage(ballotNumbers)
   pcall(cluster,msg)
 end
 
 # Follower protocol
 
-function onPrepare(cluster::Cluster, ballotNumbers::Vector{InstanceBallotNumbers})
+function onPrepare(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
 end
 
-function onPropose(cluster::Cluster, ballots::Vector{InstanceBallots})
+function onPropose(cluster::Cluster, ballots::Vector{Ballot})
 end
 
-function onAccept(cluster::Cluster, ballotNumbers::Vector{InstanceBallotNumbers})
+function onAccept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
 end
 
 
@@ -67,30 +67,30 @@ end
 # Messages
 
 struct PrepareMessage <: Message
-  ballotNumbers::InstanceBallotNumbers
+  ballotNumbers::Vector{BallotNumber}
 end
 
 # Prepare response
 struct VoteMessage <: Message
-  ballots::InstanceBallots
+  ballots::Vector{Ballot}
 end
 
 struct ProposeMessage <: Message
-  ballots::InstanceBallots
+  ballots::Vector{Ballot}
 end
 
 # Propose response
 struct PromiseMessage <: Message
-  ballotNumbers::InstanceBallotNumbers
+  ballotNumbers::Vector{BallotNumber}
 end
 
 struct AcceptMessage <: Message
-  ballotNumbers::InstanceBallotNumbers
+  ballotNumbers::Vector{BallotNumber}
 end
 
 # Not required -- accept response
 struct AcceptedMessage <: Message
-  ballotNumbers::InstanceBallotNumbers
+  ballotNumbers::Vector{BallotNumber}
 end
 
 struct TimeoutMessage <: Message

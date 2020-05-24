@@ -57,7 +57,6 @@ function onAccept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
   accepted!(log, ballotNumbers)
 end
 
-
 # Client protocol
 
 function request(cluster::Cluster, command::Command)

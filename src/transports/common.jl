@@ -4,6 +4,7 @@ export Message,
     Transport,
     Connection,
     Connections,
+    connectOne,
     connectAll,
     Messenger,
     Listener,
@@ -16,7 +17,8 @@ export Message,
     connection,
     listener,
     call,
-    gcall
+    gcall,
+    callAny
 
 using Logging
 
@@ -230,6 +232,13 @@ end
 Connections(transport::Transport) = Connections(transport,Dict{Any,Messenger}())
 
 """
+Create a connection to the address and if successful retain it in `connections`
+"""
+function connectOne(connections::Connections, address, timeout)
+    connections[address] = connectTo(connections.transport, address)
+end
+
+"""
 Asynchronously connect to as many destination addresses as possible, 
 ignoring exceptions if encountered
 """
@@ -239,7 +248,7 @@ function connectAll(connections::Connections, addresses, timeout)
             @async bounded(timeout) do
                 if !haskey(connections, address)
                     try
-                        connections[address] = connectTo(connections.transport, address)
+                        connectOne(connections, address, timeout)
                     catch ex
                         @error "Error connecting to all" exception = (ex, stacktrace(catch_backtrace()))            
                     end
@@ -335,6 +344,23 @@ function gcall(messengers, timeout, message)
         Base.close(responses)
     end
     results
+end
+
+"""
+Call the messengers in order with the message, returning after the first
+messenger that responds without an exception. No other messengers after the first
+successful call will receive the message.
+"""
+function callAny(messengers, timeout, message)
+    for messenger in messengers
+        try
+            return call(messenger, timeout, message)
+        catch ex
+            @error "Error calling any" exception = (ex, stacktrace(catch_backtrace()))
+        end
+    end
+    # if we get here we failed
+    throw(TimeoutException(timeout))
 end
 
 end

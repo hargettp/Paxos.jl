@@ -2,7 +2,6 @@ module Clients
 
 export Client, request
 
-using Random
 using UUIDs
 using ..Ballots
 using ..Configurations
@@ -24,34 +23,9 @@ Ballots.RequestID(client::Client) =
 
 # Client protocol
 
-"""
-Exception thrown when there is no server that can respond to a client request
-"""
-struct NoAvailableServerException <: Exception end
-
 function request(client::Client, timeout, command::Command)
   req = Request(RequestID(client), command)
-  for address in shuffle(memberAddresses(client.configuration))
-    if client.messenger === nothing
-      try
-        client.messenger = connectTo(client.transport, address)
-      catch ex
-        @error "Error connecting to server" exception = (ex, stacktrace(catch_backtrace()))
-        # let's try the next address
-        continue
-      end
-    end
-    try
-      return call(client.messenger, timeout, req)
-    catch ex
-      @error "Error making request of server" exception = (ex, stacktrace(catch_backtrace()))
-      close(client.messenger)
-      client.messenger = nothing
-    end
-  end
-  # if we wind up here, we couldn't contact any server reliably
-  throw(NoAvailableServerException())
+  return callAny(client.transport, client.messenger,memberAddresses(client.configuration),timeout, req)
 end
-
 
 end

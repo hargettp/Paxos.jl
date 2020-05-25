@@ -96,6 +96,10 @@ struct AcceptedMessage <: Message
   ballotNumbers::Vector{BallotNumber}
 end
 
+struct RequestMessage <: Message
+  request::Request
+end
+
 struct TimeoutMessage <: Message
 end
 
@@ -106,6 +110,7 @@ PaxosMessage = Union{
   PromiseMessage,
   AcceptMessage,
   AcceptedMessage,
+  RequestMessage,
   TimeoutMessage
   }
 

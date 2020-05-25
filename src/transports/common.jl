@@ -1,29 +1,30 @@
 module Common
 
 export Message,
-    Transport,
-    Connection,
-    Connections,
-    connectOne,
-    connectAll,
-    Messenger,
-    Listener,
-    connectTo,
-    messengerTo,
-    listenOn,
-    sendTo,
-    receivedMessages,
-    sendMessage,
-    connection,
-    listener,
-    call,
-    gcall,
-    callAny
+  Transport,
+  Connection,
+  Connections,
+  connectOne,
+  connectAll,
+  Messenger,
+  Listener,
+  connectTo,
+  messengerTo,
+  listenOn,
+  sendTo,
+  receivedMessages,
+  sendMessage,
+  connection,
+  listener,
+  call,
+  gcall,
+  callAny
 
+using Base
 using Logging
+using Random
 
 using ...Utils
-using Base
 
 """
 An abstract payload for sending data via a `Transport`
@@ -89,28 +90,28 @@ until closed. In addition to stopping the tasks for transmission / reception, cl
 the messenger also closes the underlying connection.
 """
 struct Messenger{T}
-    resource::T
-    inbound::Channel
-    outbound::Channel
-    errors::Channel
+  resource::T
+  inbound::Channel
+  outbound::Channel
+  errors::Channel
 end
 
 """
 Construct a messenger for the given resource
 """
 function Messenger(connection)
-    errors = Channel()
-    messenger = Messenger(
-        connection,
-        Channel() do inbound
-            messageReceiver(connection, inbound, errors)
-        end,
-        Channel() do outbound
-            messageSender(connection, outbound, errors)
-        end,
-        errors,
-    )
-    messenger
+  errors = Channel()
+  messenger = Messenger(
+    connection,
+    Channel() do inbound
+      messageReceiver(connection, inbound, errors)
+    end,
+    Channel() do outbound
+      messageSender(connection, outbound, errors)
+    end,
+    errors,
+  )
+  messenger
 end
 
 """
@@ -118,24 +119,24 @@ Continuously receive messages over the connection and places them in the
 messenger's inbound channel, until the messenger is closed.
 """
 function messageReceiver(connection::Connection, inbound::Channel, errors::Channel)
-    try
-        @debug "Preparing to receive messages"
-        while true
-            # Receive using the connection's transport
-            @debug "Receiving message over transport connection: $connection"
-            msg = receiveFrom(connection)
-            put!(inbound, msg)
-            @debug "Message $msg received over transport connection: $connection"
-        end
-    catch ex
-        if isa(ex, InvalidStateException) && (ex.state == :closed)
-            @debug "Inbound closed"
-        else
-            @error "Error receiving messages" exception = (ex, stacktrace(catch_backtrace()))
-        end
-    finally
-        @debug "Finished receive messages"
+  try
+    @debug "Preparing to receive messages"
+    while true
+      # Receive using the connection's transport
+      @debug "Receiving message over transport connection: $connection"
+      msg = receiveFrom(connection)
+      put!(inbound, msg)
+      @debug "Message $msg received over transport connection: $connection"
     end
+  catch ex
+    if isa(ex, InvalidStateException) && (ex.state == :closed)
+      @debug "Inbound closed"
+    else
+      @error "Error receiving messages" exception = (ex, stacktrace(catch_backtrace()))
+    end
+  finally
+    @debug "Finished receive messages"
+  end
 end
 
 """
@@ -143,54 +144,53 @@ Continously send any messages on the messenger's outbound channel,
 until the messenger is closed
 """
 function messageSender(connection::Connection, outbound::Channel, errors::Channel)
-    try
-        @debug "Preparing to deliver messages"
-        for msg in outbound
-            @debug "Delivering message $msg over transport connection"
-            sendTo(connection, msg)
-            @debug "Message $msg delivered"
-        end
-    catch ex
-        if (isa(ex, InvalidStateException) && (ex.state == :closed)) ||
-                isa(ex, Base.IOError)
-            @debug "Outbounbd closed"
-        else
-            @error "Error delivering messages" exception = (ex, stacktrace(catch_backtrace()))
-        end
-    finally
-        @debug "Finished delivering messages"
+  try
+    @debug "Preparing to deliver messages"
+    for msg in outbound
+      @debug "Delivering message $msg over transport connection"
+      sendTo(connection, msg)
+      @debug "Message $msg delivered"
     end
+  catch ex
+    if (isa(ex, InvalidStateException) && (ex.state == :closed)) || isa(ex, Base.IOError)
+      @debug "Outbounbd closed"
+    else
+      @error "Error delivering messages" exception = (ex, stacktrace(catch_backtrace()))
+    end
+  finally
+    @debug "Finished delivering messages"
+  end
 end
 
 """
 Enqueue message for sending over the transport connection
 """
 function sendMessage(messenger::Messenger, message)
-    @debug "Enqueuing message to send"
-    try
-        put!(messenger.outbound, message)
-    catch ex
-        if (isa(ex, InvalidStateException) && (ex.state == :closed))
-            @debug "Sending channel closed"
-        else
-            rethrow()
-        end
+  @debug "Enqueuing message to send"
+  try
+    put!(messenger.outbound, message)
+  catch ex
+    if (isa(ex, InvalidStateException) && (ex.state == :closed))
+      @debug "Sending channel closed"
+    else
+      rethrow()
     end
-    @debug "Message enqueued"
+  end
+  @debug "Message enqueued"
 end
 
 """
 Return a channel for processing messages received on the Messenger
 """
 function receivedMessages(messenger::Messenger)
-    messenger.inbound
+  messenger.inbound
 end
 
 function Base.close(connection::Messenger)
-    close(connection.resource)
-    close(connection.outbound)
-    close(connection.inbound)
-    close(connection.errors)
+  close(connection.resource)
+  close(connection.outbound)
+  close(connection.inbound)
+  close(connection.errors)
 end
 
 """
@@ -198,7 +198,7 @@ Connect to the recipient via the underlying transport and construct
 a `Messenger` with the resulting `Connection`
 """
 function messengerTo(transport, recipient)
-    Messenger(connectTo(transport, recipient))
+  Messenger(connectTo(transport, recipient))
 end
 
 """
@@ -207,35 +207,35 @@ then invoke the handler with the `Messenger` as an argument. Close the messenger
 as soon as the connection exits.
 """
 function connection(handler::Function, transport::Transport, recipient)
-    @debug "Beginning connection to $recipient"
+  @debug "Beginning connection to $recipient"
+  try
+    messenger = messengerTo(transport, recipient)
     try
-        messenger = messengerTo(transport, recipient)
-        try
-            handler(messenger)
-        finally
-            close(messenger)
-        end
+      handler(messenger)
     finally
-        @debug "Finished connection to $recipient"
+      close(messenger)
     end
+  finally
+    @debug "Finished connection to $recipient"
+  end
 end
 
 struct Connections
-    transport::Transport
-    messengers::Dict{Any,Messenger}
+  transport::Transport
+  messengers::Dict{Any,Messenger}
 end
 
-function Base.getindex(connections::Connections,address)
-    get(connections.messengers,address,messengerTo(connections.transport,address))
+function Base.getindex(connections::Connections, address)
+  get(connections.messengers, address, messengerTo(connections.transport, address))
 end
 
-Connections(transport::Transport) = Connections(transport,Dict{Any,Messenger}())
+Connections(transport::Transport) = Connections(transport, Dict{Any,Messenger}())
 
 """
 Create a connection to the address and if successful retain it in `connections`
 """
 function connectOne(connections::Connections, address, timeout)
-    connections[address] = connectTo(connections.transport, address)
+  connections[address] = connectTo(connections.transport, address)
 end
 
 """
@@ -243,20 +243,20 @@ Asynchronously connect to as many destination addresses as possible,
 ignoring exceptions if encountered
 """
 function connectAll(connections::Connections, addresses, timeout)
-    @sync bounded(timeout) do
-        for address in addresses
-            @async bounded(timeout) do
-                if !haskey(connections, address)
-                    try
-                        connectOne(connections, address, timeout)
-                    catch ex
-                        @error "Error connecting to all" exception = (ex, stacktrace(catch_backtrace()))            
-                    end
-                end
-            end
+  @sync bounded(timeout) do
+    for address in addresses
+      @async bounded(timeout) do
+        if !haskey(connections, address)
+          try
+            connectOne(connections, address, timeout)
+          catch ex
+            @error "Error connecting to all" exception = (ex, stacktrace(catch_backtrace()))
+          end
         end
+      end
     end
-    connections
+  end
+  connections
 end
 
 """
@@ -265,27 +265,26 @@ invoking the handler for each `Connection` discveroed. A listner should be `clos
 when no longer needed, to free up resources
 """
 function listener(handler::Function, transport::Transport, address)
-    @async begin
-        @debug "Beginning to listen"
-        listenOn(transport, address) do connection
-            @debug "Beginning to handle a connection"
-            messenger = Messenger(connection)
-            try
-                handler(messenger)
-            catch ex
-                if isa(ex, ListenerClosedException)
-                    @debug "Closing listener"
-                else
-                    @error "Error while handling" exception =
-                        (ex, stacktrace(catch_backtrace()))
-                end
-            finally
-                close(messenger)
-                @debug "Finished handling a connection"
-            end
+  @async begin
+    @debug "Beginning to listen"
+    listenOn(transport, address) do connection
+      @debug "Beginning to handle a connection"
+      messenger = Messenger(connection)
+      try
+        handler(messenger)
+      catch ex
+        if isa(ex, ListenerClosedException)
+          @debug "Closing listener"
+        else
+          @error "Error while handling" exception = (ex, stacktrace(catch_backtrace()))
         end
-        @debug "Finished listening"
+      finally
+        close(messenger)
+        @debug "Finished handling a connection"
+      end
     end
+    @debug "Finished listening"
+  end
 end
 
 """
@@ -294,7 +293,7 @@ Exception sent to a listener to indicate that it has been closed
 struct ListenerClosedException <: Exception end
 
 function Base.close(listener::Listener)
-    schedule(listener, ListenerClosedException(), error = true)
+  schedule(listener, ListenerClosedException(), error = true)
 end
 
 # -----------------
@@ -305,11 +304,11 @@ seconds for a response. If no response received in the alloted time, then
 throw a `TimeoutException`; otherwise, return the reeived response.
 """
 function call(messenger::Messenger, timeout, message)
-    bounded(timeout) do
-        sendMessage(messenger, message)
-        response = take!(receivedMessages(messenger))
-        return response
-    end
+  bounded(timeout) do
+    sendMessage(messenger, message)
+    response = take!(receivedMessages(messenger))
+    return response
+  end
 end
 
 """
@@ -318,49 +317,71 @@ Send the message through each of the `Messenger`s, but only allow
 the alloted time, if any.
 """
 function gcall(messengers, timeout, message)
-    sz = length(messengers)
-    responses = Channel()
-    results = Vector()
-    try
-        bounded(timeout) do
-            for messenger in messengers
-                @async begin
-                    response = call(messenger, timeout, message)
-                    put!(responses, response)
-                end
-            end
-            for response in responses
-                push!(results, response)
-                if length(results) >= sz
-                    break
-                end
-            end
+  sz = length(messengers)
+  responses = Channel()
+  results = Vector()
+  try
+    bounded(timeout) do
+      for messenger in messengers
+        @async begin
+          response = call(messenger, timeout, message)
+          put!(responses, response)
         end
-    catch ex
-        if !isa(ex, TimeoutException)
-            rethrow()
+      end
+      for response in responses
+        push!(results, response)
+        if length(results) >= sz
+          break
         end
-    finally
-        Base.close(responses)
+      end
     end
-    results
+  catch ex
+    if !isa(ex, TimeoutException)
+      rethrow()
+    end
+  finally
+    Base.close(responses)
+  end
+  results
 end
+
+"""
+Exception thrown when there is no server that can respond to a client request
+"""
+struct NoAvailableServerException <: Exception end
 
 """
 Call the messengers in order with the message, returning after the first
 messenger that responds without an exception. No other messengers after the first
 successful call will receive the message.
 """
-function callAny(messengers, timeout, message)
-    for messenger in messengers
-        try
-            return call(messenger, timeout, message)
-        catch ex
-            @error "Error calling any" exception = (ex, stacktrace(catch_backtrace()))
-        end
+function callAny(
+  transport::Transport,
+  messenger::Union{Messenger,Nothing},
+  addresses,
+  timeout,
+  msg::Message,
+)
+  for address in shuffle(addresses)
+    if messenger === nothing
+      try
+        messenger = connectTo(transport, address)
+      catch ex
+        @error "Error connecting to server" exception = (ex, stacktrace(catch_backtrace()))
+        # let's try the next address
+        continue
+      end
     end
-    # if we get here we failed
-    throw(TimeoutException(timeout))
+    try
+      return (messenger, call(messenger, timeout, msg))
+    catch ex
+      @error "Error calling server" exception = (ex, stacktrace(catch_backtrace()))
+      close(messenger)
+      messenger = nothing
+    end
+  end
+  # if we wind up here, we couldn't contact any server reliably
+  throw(NoAvailableServerException())
 end
 
 end

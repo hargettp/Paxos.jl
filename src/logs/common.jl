@@ -67,15 +67,6 @@ Create an open `LogEntry` with no `Request
 """
 LogEntry(sequenceNumber::SequenceNumber) = LogEntry(entryOpen,sequenceNumber,nothing,ReentrantLock())
 
-function withEntry(fn::Function, entry::LogEntry)
-    try
-        lock(entry.lock)
-        fn(entry)
-    finally
-        unlock(entry.lock)
-    end
-end
-
 """
 A log is a record of `Command`s to apply to an external data structure or
 state machine. A log is structured as a sequence of `LogEntry` objects.
@@ -100,12 +91,28 @@ mutable struct Log
     Index of latest applied entry, or nothing if none applied yet
     """
     latestApplied::Union{Integer,Nothing}
+
+    """
+    Lock to protect concurrent access to the log and its entries
+    """
+    lock::ReentrantLock
 end
 
-Log() = Log(Dict(), 0, nothing, nothing)
+Log() = Log(Dict(), 0, nothing, nothing, ReentrantLock())
+
+function withLog(fn::Function, log::Log)
+    try
+        lock(log.lock)
+        fn(log)
+    finally
+        unlock(log.lock)
+    end
+end
 
 function Base.isempty(log::Log)
-    isempty(log.entries)
+    withLog(log) do log
+        isempty(log.entries)
+    end
 end
 
 """
@@ -113,14 +120,16 @@ Return true if the log is not empty and has unapplied entries, false
 otherwise
 """
 function Base.isready(log::Log)
-    return if isempty(log)
-        false
-    else
-        if log.latestApplied == nothing
+    withLog(log) do log
+        return if isempty(log)
             false
         else
-            (log.latestApplied < log.latestIndex) &&
-            log.latestApplied.state == entryAccepted
+            if log.latestApplied == nothing
+                false
+            else
+                (log.latestApplied < log.latestIndex) &&
+                log.latestApplied.state == entryAccepted
+            end
         end
     end
 end
@@ -133,21 +142,29 @@ end
 Return the next unused instance (actually, the next unused index) in the log
 """
 function nextInstance(log::Log)
-  (log.latestIndex == nothing) ? log.earliestIndex : (log.latestIndex + 1)
+    withLog(log) do log
+        (log.latestIndex == nothing) ? log.earliestIndex : (log.latestIndex + 1)
+    end
 end
 
 function addEntry(log::Log, entry::LogEntry)
-    nextIndex = nextInstance(log)
-    log.entries[nextIndex] = entry
-    log.latestIndex = nextIndex
+    withLog(log) do log
+        nextIndex = nextInstance(log)
+        log.entries[nextIndex] = entry
+        log.latestIndex = nextIndex
+    end
 end
 
 function apply(fn::Function, log::Log, state)
-    while isready(log)
-        nextIndex = (log.latestApplied == nothing) ? 0 : (log.latestApplied + 1)
-        entry = log.entries[nextIndex]
-        fn(state, entry.requst.command)
-        log.latestApplied = nextIndex
+    withLog(log) do log
+        while isready(log)
+            nextIndex = (log.latestApplied == nothing) ? 0 : (log.latestApplied + 1)
+            entry = log.entries[nextIndex]
+            # note we are holding a lock while calling into arbitrary code
+            # ....may be worth a rethink
+            fn(state, entry.requst.command)
+            log.latestApplied = nextIndex
+        end
     end
 end
 
@@ -155,7 +172,8 @@ end
 Create a ballot number for an instance
 """
 function nextBallotNumber!(log::Log, instanceID=nextInstance(log))
-    withEntry(log.entries[instanceID]) do entry
+    withLog(log) do log
+        entry = log.entries[instanceID]
         entry.sequenceNumber += 1
         BallotNumber(instanceID, entry.sequenceNumber)
     end
@@ -166,18 +184,20 @@ Compute a ballot number corresponding to the highest sequence number seen
 for each instance. This is useful for the "propose" phase of the protocol.
 """
 function votes!(log::Log, ballotNumbers::Vector{BallotNumber})
-    map(ballotNumbers) do ballotNumber
-        instanceID = ballotNumber.instanceID
-        entry = get!(log.entries,instanceID,LogEntry(ballotNumber.sequenceNumber))
-        BallotNumber(instanceID,max(entry.sequenceNumber, ballotNumber.sequenceNumber))
+    withLog(log) do log
+        map(ballotNumbers) do ballotNumber
+            instanceID = ballotNumber.instanceID
+            entry = get!(log.entries,instanceID,LogEntry(ballotNumber.sequenceNumber))
+            BallotNumber(instanceID,max(entry.sequenceNumber, ballotNumber.sequenceNumber))
+        end
     end
 end
 
 function promises!(log::Log, ballots::Vector{Ballot})
-    promises = map(ballots) do ballot
-        instanceID = ballot.number.instanceID
-        entry = get!(log.entries,instanceID,LogEntry(ballot.number.sequenceNumber))
-        withEntry(entry) do
+    withLog(log) do log
+        promises = map(ballots) do ballot
+            instanceID = ballot.number.instanceID
+            entry = get!(log.entries,instanceID,LogEntry(ballot.number.sequenceNumber))
             if(entry.sequenceNumber < ballot.number.sequenceNumber)
                 entry.state = entryPromised
                 entry.sequenceNumber = ballot.number.sequenceNumber
@@ -188,18 +208,18 @@ function promises!(log::Log, ballots::Vector{Ballot})
                 nothing
             end
         end
-    end
-    # if we've already seen a sequence number, we won't promise again
-    filter(promises) do promise
-        promise != nothing
+        # if we've already seen a sequence number, we won't promise again
+        filter(promises) do promise
+            promise !== nothing
+        end
     end
 end
 
 function accepted!(log::Log,ballotNumbers::Vector{BallotNumber})
-    accepted = map(ballotNumbers) do ballotNumber
-        instanceID = ballotNumber.instanceID
-        entry = get!(log.entries,instanceID,LogEntry(ballotNumber.sequenceNumber))
-        withEntry(entry) do
+    withLog(log) do log
+        accepted = map(ballotNumbers) do ballotNumber
+            instanceID = ballotNumber.instanceID
+            entry = get!(log.entries,instanceID,LogEntry(ballotNumber.sequenceNumber))
             # TOOO hmmm, should we check leader ID who generated the ballot too?
             # TODO if the entry state isn't accepted, we may have missed some messages
             # -- so should we go into a refetch mode?
@@ -210,10 +230,10 @@ function accepted!(log::Log,ballotNumbers::Vector{BallotNumber})
                 nothing
             end
         end
-    end
-    # if we've already seen a sequence number, we won't accept again
-    filter(accepted) do acceptance
-        acceptance != nothing
+        # if we've already seen a sequence number, we won't accept again
+        filter(accepted) do acceptance
+            acceptance != nothing
+        end
     end
 end
 

@@ -2,7 +2,7 @@ module Protocols
 
 using UUIDs
 
-export Cluster, prepare, propose, accept, onPrepare, onPropose, onAccept
+export Cluster, prepare, propose, accept, request, onPrepare, onPropose, onAccept
 
 # using .Transports
 using ..Transports.Common
@@ -59,7 +59,8 @@ end
 
 # Client protocol
 
-function request(cluster::Cluster, command::Command)
+function request(transport::Transport,messenger::Union{Messenger,Nothing}, addresses,timeout, request::Request)
+  return callAny(transport, messenger,addresses,timeout, RequestMessage(request))
 end
 
 # Server protocol

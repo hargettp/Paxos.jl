@@ -1,11 +1,12 @@
 module Clients
 
-export Client, request
+export Client, invoke
 
 using UUIDs
 using ..Ballots
 using ..Configurations
 using ..Nodes
+using ..Protocols
 using ..Transports.Common
 
 mutable struct Client
@@ -16,16 +17,18 @@ mutable struct Client
   messenger::Union{Messenger,Nothing}
 end
 
-# Client(transport::Transport) = Client(nodeid(), 0, transport, nothing)
-
 Ballots.RequestID(client::Client) =
   Ballots.RequestID(uuid4(), client.id, client.requestSequenceNumber += 1)
 
-# Client protocol
-
-function request(client::Client, timeout, command::Command)
+"""
+Invoke the indicated `Commmand`, regulated by consensus to ensure consistent
+ordering across all members.
+"""
+function invoke(client::Client, timeout, command::Command)
   req = Request(RequestID(client), command)
-  return callAny(client.transport, client.messenger,memberAddresses(client.configuration),timeout, req)
+  messenger, response = request(client.transport, client.messenger,memberAddresses(client.configuration),timeout, req)
+  client.messenger = messenger
+  response
 end
 
 end

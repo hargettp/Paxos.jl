@@ -7,7 +7,8 @@ using UUIDs
 
 function logAddEntry(log=Log())
   req = Request(RequestID(uuid4(),uuid4(),1), Operation(:inc))
-  ballot = Ballot(nodeid(), BallotNumber(nextInstance(log), 0), req)
-  addEntry(log, LogEntry(req))
+  entry = LogEntry(req)
+  addEntry(log, entry)
+  ballot = Ballot(nodeid(), BallotNumber(nextInstance(log), entry.sequenceNumber), req)
   log
 end

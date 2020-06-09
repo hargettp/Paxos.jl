@@ -1,7 +1,7 @@
 module Utils
 
 using Base
-export closeAll, readAvailable, bounded, TimeoutException
+export closeAll, readAvailable, bounded, TimeoutException, compact
 
 function closeAll(closeables)
     for closeable in closeables
@@ -60,6 +60,15 @@ function bounded(fn, timeout)
         end
     end
     take!(result)
+end
+
+"""
+Return an iterator that skips any `nothing` results from the underlying itetator
+"""
+function compact(itr)
+    Iterators.filter(itr) do el
+        el !== nothing
+    end
 end
 
 end

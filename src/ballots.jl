@@ -15,7 +15,7 @@ choosing a ballot by consensus.
 
 `InstanceID`s are ordered, with "earlier" instances coming before later ones.
 The ordering is intended to support ordering instances (and their chosen ballot)
-into an ordered log of chosen commands.
+into an ordered ledger of chosen commands.
 """
 const InstanceID = UInt128
 

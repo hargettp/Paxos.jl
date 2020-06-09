@@ -6,7 +6,7 @@ using Sockets
 
 using ..Ballots
 using ..Configurations
-using ..Logs.Common
+using ..Ledgers
 using ..Nodes
 using ..Protocols
 using ..Transports.Common
@@ -15,25 +15,25 @@ using ..Utils
 mutable struct Leader
   id::NodeID
   address::String
-  log::Log
+  ledger::Ledger
   requests::Channel
   listener::Union{Listener,Nothing}
 end
 
-Leader(id::NodeID, address::String, log::Log) = Leader(id, address, log, Channel(), nothing)
+Leader(id::NodeID, address::String, ledger::Ledger) = Leader(id, address, ledger, Channel(), nothing)
 
 function serve(leader::Leader, transport::Transport) end
 
-function lead(leaderID::NodeID, log::Log, cfg::Configuration, transport::Transport)
+function lead(leaderID::NodeID, ledger::Ledger, cfg::Configuration, transport::Transport)
   @sync begin
     cluster = Cluster(50, cfg, Connections(transport))
-    leader = Leader(leaderID, memberAddress(cfg, leaderID), log)
+    leader = Leader(leaderID, memberAddress(cfg, leaderID), ledger)
     server = @async serve(leader, transport)
     try
       while isopen(leader.requests)
         clientRequests = readAvailable(leader.requests)
         clients::Dict{InstanceID,Messenger}, ballots::Vector{Ballot} =
-          clientBallots(log, leader.id, clientRequests)
+          clientBallots(ledger, leader.id, clientRequests)
         try
           ballotNumbers = map(ballots) do ballot
             ballot.number
@@ -67,14 +67,14 @@ end
 function preparePhase(cluster::Cluster, leader::Leader, ballots::Vector{Ballot}) end
 
 function clientBallots(
-  log::Log,
+  ledger::Ledger,
   leaderID::NodeID,
   clientRequests::Vector{Tuple{Messenger,Request}},
 )
   clients = Dict{InstanceID,Messenger}()
   ballots = map(clientRequests) do clientRequest
     client, request = clientRequest
-    ballot = request!(log, leaderID, request)
+    ballot = request!(ledger, leaderID, request)
     clients[ballot.number.instanceID] = client
     ballot
   end
@@ -110,7 +110,7 @@ function chooseBallots(ballots::Vector{Ballot})
   chosenBallots
 end
 
-function recordChoices(log::Log, ballots::Vector{Ballot})
+function recordChoices(ledger::Ledger, ballots::Vector{Ballot})
 
 end
 

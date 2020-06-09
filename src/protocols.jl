@@ -10,7 +10,7 @@ using ..Transports.Common
 using ..Ballots
 using ..Nodes
 using ..Configurations
-using ..Logs.Common
+using ..Ledgers
 
 mutable struct Cluster
   timeout::Int
@@ -144,16 +144,16 @@ end
 
 # Follower protocol
 
-function onPrepare(log::Log, ballotNumbers::Vector{BallotNumber})
-  votes!(log, ballotNumbers)
+function onPrepare(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
+  votes!(ledger, ballotNumbers)
 end
 
 function onPropose(cluster::Cluster, ballots::Vector{Ballot})
-  promises!(log, ballots)
+  promises!(ledger, ballots)
 end
 
 function onAccept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
-  accepted!(log, ballotNumbers)
+  accepted!(ledger, ballotNumbers)
 end
 
 # Client protocol

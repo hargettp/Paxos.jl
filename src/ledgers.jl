@@ -1,8 +1,8 @@
-module Common
+module Ledgers
 
-export Log,
+export Ledger,
   LogEntryState,
-  LogEntry,
+  LedgerEntry,
   entryOpen,
   entryRequested,
   entryPrepared,
@@ -46,43 +46,43 @@ to application state
 end
 
 """
-A `LogEntry` captures the state of a `Command` to apply to a `Log`s external
-model or state machine. Conveniently, a log entry has a structure suitable
+A `LedgerEntry` captures the state of a `Command` to apply to a `Ledger`s external
+model or state machine. Conveniently, a ledger entry has a structure suitable
 for use as a "ledger" for 1 instance of the Paxos algorithm: as ballots
 for that instance progress the entry contains the state needed for a
 leader, follower, or learner to move towards an outcome or final ballot
 containing the chosen command for application.
 """
-mutable struct LogEntry
+mutable struct LedgerEntry
   state::LogEntryState
   sequenceNumber::SequenceNumber
   request::Union{Request,Nothing}
 end
 
-LogEntry(ballot::Ballot) = LogEntry(entryOpen, ballot.number.sequenceNumber, ballot.request)
+LedgerEntry(ballot::Ballot) = LedgerEntry(entryOpen, ballot.number.sequenceNumber, ballot.request)
 
-LogEntry(request::Request) = LogEntry(entryRequested, 1, request)
+LedgerEntry(request::Request) = LedgerEntry(entryRequested, 1, request)
 
-LogEntry(sequenceNumber::SequenceNumber) = LogEntry(entryOpen, sequenceNumber, nothing)
+LedgerEntry(sequenceNumber::SequenceNumber) = LedgerEntry(entryOpen, sequenceNumber, nothing)
 
 """
-A log is a record of `Command`s to apply to an external data structure or
-state machine. A log is structured as a sequence of `LogEntry` objects.
+A ledger is a record of `Command`s to apply to an external data structure or
+state machine. A ledger is structured as a sequence of `LedgerEntry` objects.
 """
-mutable struct Log
+mutable struct Ledger
   """
-  The entries in the log, accessed by their index. The reason for using
+  The entries in the ledger, accessed by their index. The reason for using
   a `Dict` instead of an array (with a base offset) is to allow for a potentially
   sparse list of entries.
   """
-  entries::Dict{InstanceID,LogEntry}
+  entries::Dict{InstanceID,LedgerEntry}
 
   """
-  Index of earliest entry in log
+  Index of earliest entry in ledger
   """
   earliestIndex::Union{InstanceID,Nothing}
   """
-  Index of latest entry in log
+  Index of latest entry in ledger
   """
   latestIndex::Union{InstanceID,Nothing}
   """
@@ -91,100 +91,100 @@ mutable struct Log
   latestApplied::Union{Integer,Nothing}
 
   """
-  Lock to protect concurrent access to the log and its entries
+  Lock to protect concurrent access to the ledger and its entries
   """
   lock::ReentrantLock
 end
 
-Log() = Log(Dict(), 0, nothing, nothing, ReentrantLock())
+Ledger() = Ledger(Dict(), 0, nothing, nothing, ReentrantLock())
 
-function withLog(fn::Function, log::Log)
+function withLedger(fn::Function, ledger::Ledger)
   try
-    lock(log.lock)
-    fn(log)
+    lock(ledger.lock)
+    fn(ledger)
   finally
-    unlock(log.lock)
+    unlock(ledger.lock)
   end
 end
 
-function Base.isempty(log::Log)
-  withLog(log) do log
-    isempty(log.entries)
+function Base.isempty(ledger::Ledger)
+  withLedger(ledger) do ledger
+    isempty(ledger.entries)
   end
 end
 
 """
-Return true if the log is not empty and has unapplied entries, false
+Return true if the ledger is not empty and has unapplied entries, false
 otherwise
 """
-function Base.isready(log::Log)
-  withLog(log) do log
-    return if isempty(log)
+function Base.isready(ledger::Ledger)
+  withLedger(ledger) do ledger
+    return if isempty(ledger)
       false
     else
-      if log.latestApplied == nothing
+      if ledger.latestApplied == nothing
         false
       else
-        (log.latestApplied < log.latestIndex) && log.latestApplied.state == entryAccepted
+        (ledger.latestApplied < ledger.latestIndex) && ledger.latestApplied.state == entryAccepted
       end
     end
   end
 end
 
-function Base.length(log::Log)
-  length(log.entries)
+function Base.length(ledger::Ledger)
+  length(ledger.entries)
 end
 
 """
-Return the next unused instance (actually, the next unused index) in the log
+Return the next unused instance (actually, the next unused index) in the ledger
 """
-function nextInstance(log::Log)
-  withLog(log) do log
-    (log.latestIndex === nothing) ? log.earliestIndex : (log.latestIndex + 1)
+function nextInstance(ledger::Ledger)
+  withLedger(ledger) do ledger
+    (ledger.latestIndex === nothing) ? ledger.earliestIndex : (ledger.latestIndex + 1)
   end
 end
 
 """
 Create a ballot number for an instance
 """
-function nextBallotNumber!(log::Log, instanceID = nextInstance(log))
-  withLog(log) do log
-    entry = log.entries[instanceID]
+function nextBallotNumber!(ledger::Ledger, instanceID = nextInstance(ledger))
+  withLedger(ledger) do ledger
+    entry = ledger.entries[instanceID]
     entry.sequenceNumber += 1
     BallotNumber(instanceID, entry.sequenceNumber)
   end
 end
 
-function addEntry(log::Log, entry::LogEntry)
-  withLog(log) do log
-    instanceID = nextInstance(log)
-    log.entries[instanceID] = entry
-    log.latestIndex = instanceID
-    nextBallotNumber!(log, instanceID)
+function addEntry(ledger::Ledger, entry::LedgerEntry)
+  withLedger(ledger) do ledger
+    instanceID = nextInstance(ledger)
+    ledger.entries[instanceID] = entry
+    ledger.latestIndex = instanceID
+    nextBallotNumber!(ledger, instanceID)
   end
 end
 
-function apply!(fn::Function, log::Log, state)
-  withLog(log) do log
-    while isready(log)
-      nextIndex = (log.latestApplied == nothing) ? 0 : (log.latestApplied + 1)
-      entry = log.entries[nextIndex]
+function apply!(fn::Function, ledger::Ledger, state)
+  withLedger(ledger) do ledger
+    while isready(ledger)
+      nextIndex = (ledger.latestApplied == nothing) ? 0 : (ledger.latestApplied + 1)
+      entry = ledger.entries[nextIndex]
       # note we are holding a lock while calling into arbitrary code
       # ....may be worth a rethink
       fn(state, entry.requst.command)
-      log.latestApplied = nextIndex
+      ledger.latestApplied = nextIndex
     end
   end
 end
 
 """
-Given a `Request`, add to the log as a new entry (and ballot) in the `entryRequested` state.
+Given a `Request`, add to the ledger as a new entry (and ballot) in the `entryRequested` state.
 Return the resulting `Ballot` created as a result.
 """
-function request!(log::Log, leaderID::NodeID, request::Request)
-  withLog(log) do log
-    entry = LogEntry(request)
-    ballotNumber = addEntry(log, entry)
+function request!(ledger::Ledger, leaderID::NodeID, request::Request)
+  withLedger(ledger) do ledger
+    entry = LedgerEntry(request)
+    ballotNumber = addEntry(ledger, entry)
     Ballot(leaderID, ballotNumber, request)
   end
 end
@@ -193,14 +193,14 @@ end
 Choose a `Ballot` for a given instance, either choosing the one with the
 highest sequence number, or retaining a ballot already chosen.
 """
-function prepare!(log::Log, leaderID::NodeID, vote::Ballot)
-  withLog(log) do log
+function prepare!(ledger::Ledger, leaderID::NodeID, vote::Ballot)
+  withLedger(ledger) do ledger
     instanceID = vote.number.instanceID
-    log.latestIndex = max(log.latestIndex === nothing ? 0 : log.latestIndex, instanceID)
-    log.earliestIndex =
-      min(log.earliestIndex === nothing ? 0 : log.earliestIndex, instanceID)
+    ledger.latestIndex = max(ledger.latestIndex === nothing ? 0 : ledger.latestIndex, instanceID)
+    ledger.earliestIndex =
+      min(ledger.earliestIndex === nothing ? 0 : ledger.earliestIndex, instanceID)
     # we expect that we already have an entry, because we previously initiated the request
-    entry = log.entries[instanceID]
+    entry = ledger.entries[instanceID]
     if entry.state > entryPromised
       # If we've already chosen a decree, then do nothing more
       # this can happen if another leader made it through the algorithm faster
@@ -233,21 +233,21 @@ end
 Compute a ballot number corresponding to the highest sequence number seen
 for each instance. This is useful for the "propose" phase of the protocol.
 """
-function votes!(log::Log, ballotNumbers::Vector{BallotNumber})
-  withLog(log) do log
+function votes!(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
+  withLedger(ledger) do ledger
     map(ballotNumbers) do ballotNumber
       instanceID = ballotNumber.instanceID
-      entry = get!(log.entries, instanceID, LogEntry(ballotNumber.sequenceNumber))
+      entry = get!(ledger.entries, instanceID, LedgerEntry(ballotNumber.sequenceNumber))
       BallotNumber(instanceID, max(entry.sequenceNumber, ballotNumber.sequenceNumber))
     end
   end
 end
 
-function promises!(log::Log, ballots::Vector{Ballot})
-  withLog(log) do log
+function promises!(ledger::Ledger, ballots::Vector{Ballot})
+  withLedger(ledger) do ledger
     promises = map(ballots) do ballot
       instanceID = ballot.number.instanceID
-      entry = get!(log.entries, instanceID, LogEntry(ballot.number.sequenceNumber))
+      entry = get!(ledger.entries, instanceID, LedgerEntry(ballot.number.sequenceNumber))
       if (entry.sequenceNumber < ballot.number.sequenceNumber)
         entry.state = entryPromised
         entry.sequenceNumber = ballot.number.sequenceNumber
@@ -265,11 +265,11 @@ function promises!(log::Log, ballots::Vector{Ballot})
   end
 end
 
-function accepted!(log::Log, ballotNumbers::Vector{BallotNumber})
-  withLog(log) do log
+function accepted!(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
+  withLedger(ledger) do ledger
     accepted = map(ballotNumbers) do ballotNumber
       instanceID = ballotNumber.instanceID
-      entry = get!(log.entries, instanceID, LogEntry(ballotNumber.sequenceNumber))
+      entry = get!(ledger.entries, instanceID, LedgerEntry(ballotNumber.sequenceNumber))
       # TOOO hmmm, should we check leader ID who generated the ballot too?
       # TODO if the entry state isn't accepted, we may have missed some messages
       # -- so should we go into a refetch mode?

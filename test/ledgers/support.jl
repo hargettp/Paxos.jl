@@ -1,6 +1,7 @@
 using Paxos.Ballots
 using Paxos.Ledgers
 using Paxos.Nodes
+using Paxos.Transports.TCP
 using Paxos.Transports.Memory
 
 using UUIDs

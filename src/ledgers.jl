@@ -142,20 +142,20 @@ end
 """
 Create a ballot number for an instance
 """
-function nextBallotNumber!(ledger::Ledger, instanceID = nextInstance(ledger))
+function nextBallotNumber!(ledger::Ledger, leaderID::NodeID, instanceID = nextInstance(ledger))
   withLedger(ledger) do ledger
     entry = ledger.entries[instanceID]
     entry.sequenceNumber += 1
-    BallotNumber(instanceID, entry.sequenceNumber)
+    BallotNumber(instanceID, entry.sequenceNumber, leaderID)
   end
 end
 
-function addEntry(ledger::Ledger, entry::LedgerEntry)
+function addEntry(ledger::Ledger, entry::LedgerEntry, leaderID::NodeID)
   withLedger(ledger) do ledger
     instanceID = nextInstance(ledger)
     ledger.entries[instanceID] = entry
     ledger.latestIndex = instanceID
-    nextBallotNumber!(ledger, instanceID)
+    nextBallotNumber!(ledger, leaderID, instanceID)
   end
 end
 
@@ -179,8 +179,8 @@ Return the resulting `Ballot` created as a result.
 function request!(ledger::Ledger, leaderID::NodeID, request::Request)
   withLedger(ledger) do ledger
     entry = LedgerEntry(request)
-    ballotNumber = addEntry(ledger, entry)
-    Ballot(leaderID, ballotNumber, request)
+    ballotNumber = addEntry(ledger, entry, leaderID)
+    Ballot(ballotNumber, request)
   end
 end
 

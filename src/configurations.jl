@@ -2,6 +2,7 @@ module Configurations
 
 export isquorum,
   quorumSize,
+  NoQuorumAvailableException,
   Configuration,
   configuration,
   memberAddress,
@@ -76,6 +77,11 @@ function quorumSize(len::Integer)
     ceil(len / 2)
   end)
 end
+
+"""
+Exception thrown when no quorum is available to respond to Paxos messages
+"""
+struct NoQuorumAvailableException <: Exception end
 
 """
 Return true if the list of members represents a quorum for the configuration

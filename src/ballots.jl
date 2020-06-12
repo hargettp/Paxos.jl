@@ -1,7 +1,7 @@
 module Ballots
 
 export Ballot,
-  BallotNumber, Command, InstanceID, Operation, Request, RequestID, SequenceNumber
+  BallotNumber, Command, InstanceID, Operation, Request, RequestID, SequenceNumber, Promise
 
 using UUIDs
 
@@ -65,6 +65,16 @@ struct Ballot
   leaderID::NodeID
   number::BallotNumber
   request::Request
+end
+
+"""
+A `Promise` is a message from a member committing to a specific
+`Ballot`, and agreeing not to make a similar promise for any ballot
+in the same instance but with a lower sequence number.
+"""
+struct Promise
+  memberID::NodeID
+  ballotNumber::BallotNumber
 end
 
 Ballot(original::Ballot) =

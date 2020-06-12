@@ -1,7 +1,7 @@
 module Utils
 
 using Base
-export closeAll, readAvailable, bounded, TimeoutException, compact
+export closeAll, readAvailable, bounded, TimeoutException, compact, identity, groupBy, maxBy
 
 function closeAll(closeables)
     for closeable in closeables
@@ -69,6 +69,53 @@ function compact(itr)
     Iterators.filter(itr) do el
         el !== nothing
     end
+end
+
+"""
+Simple identity function: returns its arguments
+"""
+function identity(value)
+    value
+end
+
+"""
+Return a `Dict` whose keys are the unique values of the supplied function `fn`,
+and the values are those items in the original collection for which the supplied
+function returned that result.
+"""
+function groupBy(keyFN::Function, collection, valueFn::Function=identity)
+    if isempty(collection)
+        Dict()
+    else
+        results = Dict()
+        for item in collection
+            key = keyFN(item)
+            matches = get!(results, key, Vector())
+            push!(matches, valueFn(item))
+        end
+        results
+    end
+end
+
+"""
+Return the item with the maximum value by comparising the value returned by the supplied
+function `fn` against other values in the collection using `<`
+"""
+function maxBy(keyFn::Function, collection, valueFn=identity)
+    maxItem = nothing
+    maxValue = nothing
+    for item in collection
+        if maxItem === nothing
+            maxItem = item
+            maxValue = valueFn(item)
+        end
+        itemValue = keyFn(item)
+        if(maxValue < itemValue)
+            maxItem = item
+            maxValue = itemValue
+        end
+    end
+    maxItem
 end
 
 end

@@ -3,14 +3,28 @@ module Protocols
 using UUIDs
 
 export Cluster,
-  prepare, propose, accept, onPrepare, onPropose, onAccept, request, onRequest, respond
+  prepare,
+  propose,
+  accept,
+  onPrepare,
+  onPropose,
+  onAccept,
+  request,
+  onRequest,
+  respond,
+  Result,
+  requestAccepted,
+  requestFailed,
+  requestObsolete,
+  noQuorum
 
 # using .Transports
-using ..Transports.Common
 using ..Ballots
-using ..Nodes
 using ..Configurations
 using ..Ledgers
+using ..Nodes
+using ..Transports.Common
+using ..Utils
 
 mutable struct Cluster
   timeout::Int
@@ -68,9 +82,24 @@ struct RequestMessage <: Message
 end
 
 @enum Result begin
+  # """
+  # The request was accepted by a quorum
+  # """
   requestAccepted
+  # """
+  # The request was not accepted, but was instead made
+  # obsolete by choice of a different request by the quorum.
+  # Obsolete requests can be considered for re-execution
+  # """
   requestObsolete
+  # """
+  # An unexpected error occurr during consensus; applications
+  # should re-inspect state before retrying the same request
+  # """
   requestFailed # only if there is an exception in the protocol
+  # """
+  # No quorum available to agree on a request
+  # """
   noQuorum
 end
 struct ResponseMessage <: Message
@@ -106,7 +135,7 @@ end
 
 # Leader protocol
 
-function prepare(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
+function prepare(cluster::Cluster, ballotNumbers::Vector{BallotNumber})::Vector{Ballot}
   if isempty(ballotNumbers)
     Vector{Ballot}()
   else
@@ -118,19 +147,24 @@ function prepare(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
   end
 end
 
-function propose(cluster::Cluster, ballots::Vector{Ballot})
+function propose(cluster::Cluster, ballots::Vector{Ballot})::Vector{BallotNumber}()
   if isempty(ballots)
     Vector{Ballot}()
   else
     msg = ProposeMessage(ballots)
-    promises = pcall(cluster, msg)
-    hcat(map(promises::Vector{PromiseMessage}) do promise::PromiseMessage
-      promise.ballotNumbers
-    end...)
+    memberPromises = pcall(cluster, msg)
+    promises = Vector{Promise}()
+    for memberPromise in memberPromises
+      memberID = memberPromise.memberID
+      for ballotNumber in memberPromise.ballotNumbers
+        push!(promises, Promise(memberID, ballotNumber))
+      end
+    end
   end
+  collect(values(promises))
 end
 
-function accept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
+function accept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})::Vector{BallotNumber}
   if isempty(ballotNumbers)
     Vector{BallotNumber}()
   else
@@ -172,8 +206,13 @@ end
 
 function onRequest(cluster::Cluster, command::Command) end
 
-function respond(client::Messenger, ballot::Ballot, result::Result)
-  msg = ResponseMessage(ballot.request.id, ballot.number.instanceID, result)
+function respond(
+  client::Messenger,
+  requestID::RequestID,
+  instanceID::InstanceID,
+  result::Result,
+)
+  msg = ResponseMessage(requestID, instanceID, result)
   sendMessage(client, msg)
 end
 

@@ -1,12 +1,9 @@
 module Ledgers
 
 export Ledger,
-  LogEntryState,
+  LedgerEntryState,
   LedgerEntry,
   entryOpen,
-  entryRequested,
-  entryPrepared,
-  entryPromised,
   entryAccepted,
   entryApplied,
   nextInstance,
@@ -15,8 +12,9 @@ export Ledger,
   apply!,
   request!,
   votes!,
-  promises!,
-  accepted!
+  prepare!,
+  promise!,
+  accept!
 
 using ...Ballots
 using ...Nodes
@@ -36,11 +34,8 @@ the request in the entry
 `applied` - The underlying command in the entry's request has been applied
 to application state
 """
-@enum LogEntryState begin
+@enum LedgerEntryState begin
   entryOpen
-  entryRequested
-  entryPrepared
-  entryPromised
   entryAccepted
   entryApplied
 end
@@ -54,14 +49,14 @@ leader, follower, or learner to move towards an outcome or final ballot
 containing the chosen command for application.
 """
 mutable struct LedgerEntry
-  state::LogEntryState
+  state::LedgerEntryState
   sequenceNumber::SequenceNumber
   request::Union{Request,Nothing}
 end
 
 LedgerEntry(ballot::Ballot) = LedgerEntry(entryOpen, ballot.number.sequenceNumber, ballot.request)
 
-LedgerEntry(request::Request) = LedgerEntry(entryRequested, 1, request)
+LedgerEntry(request::Request) = LedgerEntry(entryOpen, 1, request)
 
 LedgerEntry(sequenceNumber::SequenceNumber) = LedgerEntry(entryOpen, sequenceNumber, nothing)
 
@@ -190,41 +185,37 @@ function request!(ledger::Ledger, leaderID::NodeID, request::Request)
 end
 
 """
-Choose a `Ballot` for a given instance, either choosing the one with the
-highest sequence number, or retaining a ballot already chosen.
+Record choices for each instance in `ballots`
 """
-function prepare!(ledger::Ledger, leaderID::NodeID, vote::Ballot)
+function prepare!(ledger::Ledger, ballots::Dict{InstanceID,Ballot})::Dict{InstanceID,Ballot}
+  preparedBallots = Dict{InstanceID,Ballot}()
   withLedger(ledger) do ledger
-    instanceID = vote.number.instanceID
-    ledger.latestIndex = max(ledger.latestIndex === nothing ? 0 : ledger.latestIndex, instanceID)
-    ledger.earliestIndex =
-      min(ledger.earliestIndex === nothing ? 0 : ledger.earliestIndex, instanceID)
-    # we expect that we already have an entry, because we previously initiated the request
-    entry = ledger.entries[instanceID]
-    if entry.state > entryPromised
-      # If we've already chosen a decree, then do nothing more
-      # this can happen if another leader made it through the algorithm faster
-      # with this instance
-      nothing
-    elseif entry.sequenceNumber <= vote.number.sequenceNumber
-      if leaderID == vote.leaderID
-        # this was from this leader -- let's use our existing entry
-        Ballot(leaderID, BallotNumber(instanceID,entry.sequenceNumber), entry.request)
-      else
-        # if it wasn't from this leader, then some other leader has already
-        # tried this sequence number--so let's go for the next
-        # number in preparation for issuing a new ballot, but
-        # with the other leader's request
-        newSequenceNumber = max(entry.sequenceNumber, vote.number.sequenceNumber) + 1
-        # only set the state if we are not already promised
-        if entry.state <= entryRequested
-          entry.state = entryPrepared
-        end
-        entry.sequenceNumber = newSequenceNumber
-        newBallotNumber = BallotNumber(instanceID, newSequenceNumber)
-        newBallot = Ballot(leaderID, newBallotNumber, vote.request)
-        newBallot
+    for instanceID in ballots
+      entry = ledger.entries[instanceID]
+      ballot = ballots[instanceID]
+      sequenceNumber = ballot.number.sequenceNumber
+      if entry.state == entryOpen && entry.sequenceNumber < sequenceNumber
+          entry.sequenceNumber = sequenceNumber
+          preparedBallots[instanceID] = ballot
       end
+    end
+  end
+  preparedBallots
+end
+
+function promise!(ledger::Ledger, promises::Vector{BallotNumber})
+  withLedger(ledger) do ledger
+    for promise in promises
+      instanceID = promise.instanceID
+      entry = ledger.entries[instanceID]
+      if entry.state == entryOpen
+        entry.state = entryPromised
+      end
+      sequenceNumber = promise.sequenceNumber
+      if entry.sequenceNumber < sequenceNumber
+        entry.sequenceNumber = sequenceNumber
+      end
+
     end
   end
 end
@@ -243,48 +234,35 @@ function votes!(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
   end
 end
 
-function promises!(ledger::Ledger, ballots::Vector{Ballot})
+function promise!(ledger::Ledger, approved::Dict{InstanceID,BallotNumber})::Dict{InstanceID,BallotNumber}
+  promises = Dict{InstanceID,BallotNumber}()
   withLedger(ledger) do ledger
-    promises = map(ballots) do ballot
-      instanceID = ballot.number.instanceID
-      entry = get!(ledger.entries, instanceID, LedgerEntry(ballot.number.sequenceNumber))
-      if (entry.sequenceNumber < ballot.number.sequenceNumber)
-        entry.state = entryPromised
-        entry.sequenceNumber = ballot.number.sequenceNumber
+    for instanceID in approved
+      ballotNumber = approved[instanceID]
+      entry = ledger.entries[instanceID]
+      if entry.state == entryOpen && entry.sequenceNumber == ballotNumber.sequenceNumber
         # TODO think about configuration changes
-        entry.request = ballot.request
-        BallotNumber(instanceID, entry.sequenceNumber)
-      else
-        nothing
+        promises[instanceID] = ballotNumber
       end
     end
-    # if we've already seen a sequence number, we won't promise again
-    filter(promises) do promise
-      promise !== nothing
-    end
   end
+  promises
 end
 
-function accepted!(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
+function accept!(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
+  acceptances = Vector{BallotNumber}()
   withLedger(ledger) do ledger
     accepted = map(ballotNumbers) do ballotNumber
       instanceID = ballotNumber.instanceID
-      entry = get!(ledger.entries, instanceID, LedgerEntry(ballotNumber.sequenceNumber))
+      entry = ledger.entries[instanceID]
       # TOOO hmmm, should we check leader ID who generated the ballot too?
-      # TODO if the entry state isn't accepted, we may have missed some messages
-      # -- so should we go into a refetch mode?
-      if entry.sequenceNumber == ballotNumber.sequenceNumber && entry.state == entryPromised
+      if entry.state == entryOpen && entry.sequenceNumber == ballotNumber.sequenceNumber
         entry.state = entryAccepted
-        BallotNumber(instanceID, entry.sequenceNumber)
-      else
-        nothing
+        push!(acceptances, ballotNumber)
       end
     end
-    # if we've already seen a sequence number, we won't accept again
-    filter(accepted) do acceptance
-      acceptance != nothing
-    end
   end
+  acceptances
 end
 
 end

@@ -134,6 +134,7 @@ function proposeBallots(
   for instanceID in votes
     promises = votes[instanceID]
     sequenceNumbers = collect(keys(promises))
+    # find the sequence number with the most votes
     chosenSequenceNumber = maxBy(sequenceNumbers) do sequenceNumber
       length(promises[sequenceNumber])
     end
@@ -142,7 +143,7 @@ function proposeBallots(
       vote.memberID
     end
     if isquorum(cluster.configuration, Set(voters))
-      approved[instanceID] = BallotNumber(instanceID, chosenSequenceNumber)
+      approved[instanceID] = BallotNumber(instanceID, chosenSequenceNumber, leader.id)
     end
   end
   promise!(ledger, approved)

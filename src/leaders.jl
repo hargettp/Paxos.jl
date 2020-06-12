@@ -53,10 +53,11 @@ function lead(leaderID::NodeID, ledger::Ledger, cfg::Configuration, transport::T
 end
 
 function clientBallots(
-  ledger::Ledger,
+  leader::Leader,
   leaderID::NodeID,
   clientRequests::Vector{Tuple{Messenger,Request}},
 )::Tuple{Dict{InstanceID,Messenger},Dict{InstanceID,Ballot}}
+  ledger = leader.ledger
   clients = Dict{InstanceID,Messenger}()
   ballots = Dict{InstanceID,Ballot}()
   for clientRequest in clientRequests
@@ -71,9 +72,10 @@ end
 
 function prepareRequests(
   cluster::Cluster,
-  ledger::Ledger,
+  leader::Leader,
   ballots::Dict{InstanceID,Ballot},
 )::Dict{InstanceID,Ballot}
+  ledger = leader.ledger
   ballotNumbers = map(values(ballots)) do ballot
     ballot.number
   end
@@ -100,7 +102,7 @@ function prepareRequests(
       # and can't fulfill enough client requests
       if maxVote.number.sequenceNumber < ballot.number.sequenceNumber
         # we have to use the decree from the earlier, highest vote
-        chosenBallots[instanceID] = Ballot(ballot.leaderID, ballot.number, maxVote.request)
+        chosenBallots[instanceID] = Ballot(ballot.number, maxVote.request)
       end
     end
   end
@@ -114,9 +116,10 @@ sequence number. Once found, build a map to associate instance IDs to the chosen
 """
 function proposeBallots(
   cluster::Cluster,
-  ledger::Ledger,
+  leader::Leader,
   choices::Dict{InstanceID,Ballot},
 )::Dict{InstanceID,BallotNumber}
+  ledger = leader.ledger
   promises::Vector{Promise} = propose(cluster, collect(values(choices)))
   function groupPromisesBySequenceNumber(promises::Vector{Promise})
     groupBy(promises) do promise
@@ -145,7 +148,8 @@ function proposeBallots(
   promise!(ledger, approved)
 end
 
-function acceptBallots(cluster::Cluster, ledger::Ledger, promises::Vector{BallotNumber})
+function acceptBallots(cluster::Cluster, leader::Leader, promises::Vector{BallotNumber})
+  ledger = leader.ledger
   acceptances = accept(cluster, promises)
   accept!(ledger, acceptances)
 end

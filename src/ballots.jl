@@ -57,12 +57,12 @@ end
 struct BallotNumber
   instanceID::InstanceID
   sequenceNumber::SequenceNumber
+  leaderID::NodeID
 end
 BallotNumber(original::BallotNumber) =
-  BallotNumber(original.instanceID, original.sequenceNumber + 1)
+  BallotNumber(original.instanceID, original.sequenceNumber + 1, original.leaderID)
 
 struct Ballot
-  leaderID::NodeID
   number::BallotNumber
   request::Request
 end
@@ -78,8 +78,6 @@ struct Promise
 end
 
 Ballot(original::Ballot) =
-  Ballot(original.leaderID, BallotNumber(original.number), original.request)
+  Ballot(BallotNumber(original.number), original.request)
 
-Ballot(leaderID::NodeID, vote::Ballot) =
-  Ballot(leaderID, BallotNumber(vote.number), vote.request)
 end

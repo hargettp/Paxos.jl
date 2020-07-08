@@ -1,3 +1,6 @@
+"""
+Defintions common to all implementations of `Transport`.
+"""
 module Common
 
 export Message,

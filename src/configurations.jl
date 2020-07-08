@@ -1,3 +1,7 @@
+"""
+Data types and functions support `Configuration`s, which describe the participants
+in a Paxos cluster.
+"""
 module Configurations
 
 export isquorum,

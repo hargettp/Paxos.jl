@@ -1,3 +1,6 @@
+"""
+Utility functions for `Paxos`
+"""
 module Utils
 
 using Base

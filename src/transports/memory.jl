@@ -1,3 +1,7 @@
+"""
+Implementation of `Paxos.Transports.Common.Transport` for in-memory communication
+within the current process.
+"""
 module Memory
 
 export memory

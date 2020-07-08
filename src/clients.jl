@@ -1,3 +1,6 @@
+"""
+Data types and functions for `Client`s of a Paxos cluster.
+"""
 module Clients
 
 export Client, invoke

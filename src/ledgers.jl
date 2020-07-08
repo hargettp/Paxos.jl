@@ -1,3 +1,7 @@
+"""
+Data structure useful for tracking the state of one or more instances of the
+Paxos algorithm.
+"""
 module Ledgers
 
 export Ledger,

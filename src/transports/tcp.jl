@@ -1,3 +1,7 @@
+"""
+Implementation of `Paxos.Transports.Common.Transport` for TCP-based communication
+between participants.
+"""
 module TCP
 
 export tcp

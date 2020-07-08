@@ -1,3 +1,6 @@
+"""
+Basic messages in the Paxos protocol.
+"""
 module Protocols
 
 using UUIDs

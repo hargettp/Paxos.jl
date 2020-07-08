@@ -1,3 +1,6 @@
+"""
+Basic types for identifying nodes participating in Paxos
+"""
 module Nodes
 
 export NodeID, nodeid

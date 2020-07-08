@@ -1,3 +1,7 @@
+"""
+Basic types and functions to support `Ballot`s, a fundamental unit of data exchange
+for successful Paxos execution.
+"""
 module Ballots
 
 export Ballot,

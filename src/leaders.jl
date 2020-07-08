@@ -1,3 +1,6 @@
+"""
+Implementation of the leader side of the Paxos algorithm.
+"""
 module Leaders
 
 export lead

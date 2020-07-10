@@ -39,7 +39,7 @@ function lead(leaderID::NodeID, ledger::Ledger, cfg::Configuration, transport::T
         clients::Dict{InstanceID,Messenger}, ballots::Dict{InstanceID,Ballot} =
           clientBallots(ledger, leader.id, clientRequests)
         try
-          choices::Dict{InstanceID,Ballot} = prepareRequests(cluster, ledger, ballots)
+          choices::Dict{InstanceID,Ballot} = prepareBallots(cluster, ledger, ballots)
           promises::Vector{BallotNumber} = proposeBallots(cluster, ledger, choices)
           acceptances::Vector{BallotNumber} = acceptBallots(cluster, ledger, promises)
           reportResults(clients, ballots, choices, acceptances)
@@ -73,7 +73,7 @@ function clientBallots(
   clients, ballots
 end
 
-function prepareRequests(
+function prepareBallots(
   cluster::Cluster,
   leader::Leader,
   ballots::Dict{InstanceID,Ballot},

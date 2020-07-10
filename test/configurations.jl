@@ -8,17 +8,17 @@ using Paxos.Nodes
 
 @test quorumSize(configuration()) == 1
 
-@test length(addMember(configuration(), nodeid(), "test1").new.members) == 1
+@test length(addMember(configuration(), NodeID(), "test1").new.members) == 1
 
-@test quorumSize(addMember(configuration(), nodeid(), "test1").new) == 1
+@test quorumSize(addMember(configuration(), NodeID(), "test1").new) == 1
 
 @test quorumSize(
   addMember(
     addMember(
       configuration(), 
-      nodeid(), 
+      NodeID(), 
       "test1"),
-    nodeid(), 
+    NodeID(), 
     "test2"
     ).new) == 2
 

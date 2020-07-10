@@ -81,8 +81,12 @@ end
   end
   for change in changes
     cd(docsDir) do
-      run(`julia --color=yes make.jl`)
+      try
+        run(`julia --color=yes make.jl`)
+        @info ">>>  Generation complete"
+      catch ex
+        @error "!!!  Error generating docs: $ex"
+      end
     end
-    @info ">>>  Generation complete"
   end
 end

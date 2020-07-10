@@ -7,8 +7,8 @@ using Paxos.Transports.Memory
 using UUIDs
 
 function ledgerAddEntry(ledger=Ledger())
-  req = Request(RequestID(uuid4(),uuid4(),1), Operation(:inc))
-  leaderID = nodeid()
+  req = Request(RequestID(uuid4(),NodeID(),1), Operation(:inc))
+  leaderID = NodeID()
   entry = LedgerEntry(req)
   addEntry(ledger, entry, leaderID)
   ballot = Ballot(BallotNumber(nextInstance(ledger), entry.sequenceNumber, leaderID), req)

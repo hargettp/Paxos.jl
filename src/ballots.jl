@@ -21,14 +21,16 @@ choosing a ballot by consensus.
 The ordering is intended to support ordering instances (and their chosen ballot)
 into an ordered ledger of chosen commands.
 """
-const InstanceID = UInt128
+struct InstanceID
+  value::UInt128
+end
 
 """
 Return `true` if the `left` id refers to an instance that occurs earlier
 than the `right`; otherwise, return `false`
 """
 function before(left::InstanceID, right::InstanceID)
-  left.sequenceNumber < right.sequenceNumber
+  left.value < right.value
 end
 
 """

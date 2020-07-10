@@ -20,8 +20,8 @@ export Ledger,
   promise!,
   accept!
 
-using ...Ballots
-using ...Nodes
+using ..Ballots
+using ..Nodes
 
 """
 `open` - The entry is new, and has not been populated by any ballot activity
@@ -95,7 +95,7 @@ mutable struct Ledger
   lock::ReentrantLock
 end
 
-Ledger() = Ledger(Dict(), 0, nothing, nothing, ReentrantLock())
+Ledger() = Ledger(Dict(), InstanceID(0), nothing, nothing, ReentrantLock())
 
 function withLedger(fn::Function, ledger::Ledger)
   try
@@ -139,7 +139,7 @@ Return the next unused instance (actually, the next unused index) in the ledger
 """
 function nextInstance(ledger::Ledger)
   withLedger(ledger) do ledger
-    (ledger.latestIndex === nothing) ? ledger.earliestIndex : (ledger.latestIndex + 1)
+    (ledger.latestIndex === nothing) ? ledger.earliestIndex : InstanceID(ledger.latestIndex.value + 1)
   end
 end
 
@@ -159,7 +159,7 @@ function addEntry(ledger::Ledger, entry::LedgerEntry, leaderID::NodeID)
     instanceID = nextInstance(ledger)
     ledger.entries[instanceID] = entry
     ledger.latestIndex = instanceID
-    nextBallotNumber!(ledger, leaderID, instanceID)
+    BallotNumber(instanceID, entry.sequenceNumber, leaderID)
   end
 end
 

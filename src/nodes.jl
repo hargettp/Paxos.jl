@@ -3,15 +3,17 @@ Basic types for identifying nodes participating in Paxos
 """
 module Nodes
 
-export NodeID, nodeid
+export NodeID
 
 using UUIDs
 
-NodeID = UUID
+struct NodeID
+  value::UUID
+end
 
 """
 Return a new node ID
 """
-nodeid() = uuid4()
+NodeID() = NodeID(uuid4())
 
 end

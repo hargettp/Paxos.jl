@@ -60,7 +60,7 @@ end
 
 LedgerEntry(ballot::Ballot) = LedgerEntry(entryOpen, ballot.number.sequenceNumber, ballot.request)
 
-LedgerEntry(request::Request) = LedgerEntry(entryOpen, 1, request)
+LedgerEntry(request::Request) = LedgerEntry(entryOpen, SequenceNumber(1), request)
 
 LedgerEntry(sequenceNumber::SequenceNumber) = LedgerEntry(entryOpen, sequenceNumber, nothing)
 

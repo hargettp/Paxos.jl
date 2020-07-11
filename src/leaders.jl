@@ -73,6 +73,11 @@ function clientBallots(
   clients, ballots
 end
 
+"""
+Execute the prepare phase, and collect results. For each instance, find the request with the highest
+sequence number, and use that request for the instance--or use the one originally assigned by the leader
+if no other such request found.
+"""
 function prepareBallots(
   cluster::Cluster,
   leader::Leader,

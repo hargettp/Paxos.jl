@@ -41,7 +41,9 @@ function after(left, right)
   before(right, left)
 end
 
-SequenceNumber = UInt128
+struct SequenceNumber
+  value::UInt128
+end
 
 struct Operation
   action::Any

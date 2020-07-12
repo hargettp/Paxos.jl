@@ -40,6 +40,7 @@ to application state
 """
 @enum LedgerEntryState begin
   entryOpen
+  entryPromised
   entryAccepted
   entryApplied
 end
@@ -211,15 +212,12 @@ function promise!(ledger::Ledger, promises::Vector{BallotNumber})
   withLedger(ledger) do ledger
     for promise in promises
       instanceID = promise.instanceID
-      entry = ledger.entries[instanceID]
-      if entry.state == entryOpen
-        entry.state = entryPromised
-      end
       sequenceNumber = promise.sequenceNumber
-      if entry.sequenceNumber < sequenceNumber
+      entry = ledger.entries[instanceID]
+      if entry.state == entryOpen && entry.sequenceNumber < sequenceNumber
+        entry.state = entryPromised
         entry.sequenceNumber = sequenceNumber
       end
-
     end
   end
 end

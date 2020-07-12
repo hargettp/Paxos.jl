@@ -129,29 +129,25 @@ function proposeBallots(
 )::Dict{InstanceID,BallotNumber}
   ledger = leader.ledger
   promises::Vector{Promise} = propose(cluster, collect(values(choices)))
-  function groupPromisesBySequenceNumber(promises::Vector{Promise})
-    groupBy(promises) do promise
-      promise.ballotNumber.sequenceNumber
+  votes = Dict{InstanceID,Vector{NodeID}}()
+  for promise in promises
+    memberID = promise.memberID
+    for ballotNumber in promise.ballotNumbers
+      instanceID = ballotNumber.instanceID
+      choice = choices[instanceID].number
+      # only include the vote if it matches the leaeder's choice;
+      # should simplify quorum verification
+      if ballotNumber == choice
+        members = get!(votes, instanceID, Vector())
+        push!(members, memberID )
+      end
     end
   end
-  votes::Dict{InstanceID,Dict{SequenceNumber,Vector{Promise}}} =
-    groupBy(promises, groupPromisesBySequenceNumber) do promise
-      promise.BallotNumber.instanceID
-    end
   approved = Dict{InstanceID,BallotNumber}()
-  for instanceID in votes
-    promises = votes[instanceID]
-    sequenceNumbers = collect(keys(promises))
-    # find the sequence number with the most votes
-    chosenSequenceNumber = maxBy(sequenceNumbers) do sequenceNumber
-      length(promises[sequenceNumber])
-    end
-    votes = promises[chosenSequenceNumber]
-    voters = map(votes) do vote
-      vote.memberID
-    end
+  for instanceID in keys(votes)
+    voters = map(first, votes[instanceID])
     if isquorum(cluster.configuration, Set(voters))
-      approved[instanceID] = BallotNumber(instanceID, chosenSequenceNumber, leader.id)
+      approved[instanceID] = choices[instanceID].number
     end
   end
   promise!(ledger, approved)

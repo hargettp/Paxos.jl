@@ -36,7 +36,7 @@ end
 A configuration is the general type for maintaining a list of menbers
 and addreses where they can be reached over transport
 """
-Configuration = Union{OrdinaryConfiguration,TransitionConfiguration}
+const Configuration = Union{OrdinaryConfiguration,TransitionConfiguration}
 
 """
 Return the address for the specfied node, or error if no such address

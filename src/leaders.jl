@@ -65,7 +65,7 @@ function clientBallots(
   ballots = Dict{InstanceID,Ballot}()
   for clientRequest in clientRequests
     client, request = clientRequest
-    ballot = request!(ledger, leaderID, request)
+    ballot = addEntry(ledger, leaderID, request)
     instanceID = ballot.number.instanceID
     clients[instanceID] = client
     ballots[instanceID] = ballot
@@ -118,9 +118,9 @@ function prepareBallots(
 end
 
 """
-Execute the propose phase, and collect results. For each instance, find the sequence number
-chosen by the most members, and then make sure that there was a quorum that voted for that
-sequence number. Once found, build a map to associate instance IDs to the chosen ballot number.
+Execute the propose phase, and collect results. For each instance, find the ballot number
+chosen in the prepare phase, and then make sure that there was a quorum that voted for that
+ballot number. Once found, build a map to associate instance IDs to the approved ballot numbers.
 """
 function proposeBallots(
   cluster::Cluster,

@@ -8,13 +8,13 @@ export Ledger,
   LedgerEntryState,
   LedgerEntry,
   entryOpen,
+  entryPromised,
   entryAccepted,
   entryApplied,
   nextInstance,
   addEntry,
   nextBallotNumber!,
   apply!,
-  request!,
   votes!,
   prepare!,
   promise!,
@@ -25,10 +25,6 @@ using ..Nodes
 
 """
 `open` - The entry is new, and has not been populated by any ballot activity
-
-`requested` - The entry corresponds to a local request ready to be prepared.
-
-`prepared` - The entry was discovered through an initial `Prepare` phase
 
 `promised`- Once promised, only requests with a higher ballot can replace
 the request in the entry
@@ -55,15 +51,14 @@ containing the chosen command for application.
 """
 mutable struct LedgerEntry
   state::LedgerEntryState
-  sequenceNumber::SequenceNumber
-  request::Union{Request,Nothing}
+  ballot::Ballot
 end
 
-LedgerEntry(ballot::Ballot) = LedgerEntry(entryOpen, ballot.number.sequenceNumber, ballot.request)
+LedgerEntry(ballot::Ballot) = LedgerEntry(entryOpen, ballot)
 
-LedgerEntry(request::Request) = LedgerEntry(entryOpen, SequenceNumber(1), request)
+# LedgerEntry(request::Request) = LedgerEntry(entryOpen, SequenceNumber(1), request)
 
-LedgerEntry(sequenceNumber::SequenceNumber) = LedgerEntry(entryOpen, sequenceNumber, nothing)
+# LedgerEntry(sequenceNumber::SequenceNumber) = LedgerEntry(entryOpen, sequenceNumber, nothing)
 
 """
 A ledger is a record of `Command`s to apply to an external data structure or
@@ -150,17 +145,19 @@ Create a ballot number for an instance
 function nextBallotNumber!(ledger::Ledger, leaderID::NodeID, instanceID = nextInstance(ledger))
   withLedger(ledger) do ledger
     entry = ledger.entries[instanceID]
-    entry.sequenceNumber += 1
-    BallotNumber(instanceID, entry.sequenceNumber, leaderID)
+    entry.ballot.sequenceNumber += 1
+    entry.ballotNumber
   end
 end
 
-function addEntry(ledger::Ledger, entry::LedgerEntry, leaderID::NodeID)
+function addEntry(ledger::Ledger, leaderID::NodeID, request::Request)
   withLedger(ledger) do ledger
     instanceID = nextInstance(ledger)
+    ballotNumber = BallotNumber(instanceID, SequenceNumber(1),leaderID)
+    ballot = Ballot(ballotNumber, request)
+    entry = LedgerEntry(entryOpen, ballot)
     ledger.entries[instanceID] = entry
-    ledger.latestIndex = instanceID
-    BallotNumber(instanceID, entry.sequenceNumber, leaderID)
+    ballot
   end
 end
 
@@ -171,23 +168,12 @@ function apply!(fn::Function, ledger::Ledger, state)
       entry = ledger.entries[nextIndex]
       # note we are holding a lock while calling into arbitrary code
       # ....may be worth a rethink
-      fn(state, entry.requst.command)
+      fn(state, entry.ballot.request.command)
       ledger.latestApplied = nextIndex
     end
   end
 end
 
-"""
-Given a `Request`, add to the ledger as a new entry (and ballot) in the `entryRequested` state.
-Return the resulting `Ballot` created as a result.
-"""
-function request!(ledger::Ledger, leaderID::NodeID, request::Request)
-  withLedger(ledger) do ledger
-    entry = LedgerEntry(request)
-    ballotNumber = addEntry(ledger, entry, leaderID)
-    Ballot(ballotNumber, request)
-  end
-end
 
 """
 Record choices for each instance in `ballots`

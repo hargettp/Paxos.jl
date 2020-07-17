@@ -60,14 +60,14 @@ Create a connection (if one is possible) that enables sending and receiving
 messages to the recipient. The provided handler should take 1 argument,
 a `Connection` for sending or receiving messages with the recipient.
 """
-function connectTo(transport::Transport, recipient) end
+function connectTo(transport::Transport, recipient)::Connection end
 
 """
 Listen for incoming connections and invoke the indicated function when they appear.
 Returns a `Listener`. The provided handler should take 1 argument, a `Connection`;
 a new handler will be created for each connection accepted by the listener. A listener
 """
-function listenOn(handler::Function, transport::Transport, address) end
+function listenOn(handler::Function, transport::Transport, address)::Listener end
 
 """
 Send a message on the indicated connection

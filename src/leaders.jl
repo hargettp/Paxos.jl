@@ -37,7 +37,7 @@ function lead(leaderID::NodeID, ledger::Ledger, cfg::Configuration, transport::T
       while isopen(leader.requests)
         clientRequests = readAvailable(leader.requests)
         clients::Dict{InstanceID,Messenger}, ballots::Dict{InstanceID,Ballot} =
-          clientBallots(ledger, leader.id, clientRequests)
+          recordRequests(ledger, leader.id, clientRequests)
         try
           choices::Dict{InstanceID,Ballot} = prepareBallots(cluster, ledger, ballots)
           promises::Vector{BallotNumber} = proposeBallots(cluster, ledger, choices)
@@ -55,7 +55,7 @@ function lead(leaderID::NodeID, ledger::Ledger, cfg::Configuration, transport::T
   end
 end
 
-function clientBallots(
+function recordRequests(
   leader::Leader,
   leaderID::NodeID,
   clientRequests::Vector{Tuple{Messenger,Request}},

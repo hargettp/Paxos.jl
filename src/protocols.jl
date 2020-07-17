@@ -29,7 +29,8 @@ using ..Nodes
 using ..Transports.Common
 using ..Utils
 
-mutable struct Cluster
+abstract type AbstractCluster end
+mutable struct Cluster <: AbstractCluster
   timeout::Int
   configuration::Configuration
   connections::Connections
@@ -39,7 +40,7 @@ end
 Perform a `gcall` against all members of the cluster, creating connections
 as needed (and as available), if not already present
 """
-function pcall(cluster::Cluster, msg)
+function pcall(cluster::AbstractCluster, msg)
   connections =
     connectAll(cluster.connections, memberAddresses(cluster.configuration), cluster.timeout)
   responses = gcall(values(connections), cluster.timeout, msg)
@@ -138,7 +139,7 @@ end
 
 # Leader protocol
 
-function prepare(cluster::Cluster, ballotNumbers::Vector{BallotNumber})::Vector{Ballot}
+function prepare(cluster::AbstractCluster, ballotNumbers::Vector{BallotNumber})::Vector{Ballot}
   if isempty(ballotNumbers)
     Vector{Ballot}()
   else
@@ -150,7 +151,7 @@ function prepare(cluster::Cluster, ballotNumbers::Vector{BallotNumber})::Vector{
   end
 end
 
-function propose(cluster::Cluster, ballots::Vector{Ballot})::Vector{BallotNumber}()
+function propose(cluster::AbstractCluster, ballots::Vector{Ballot})::Vector{BallotNumber}()
   if isempty(ballots)
     Vector{Ballot}()
   else
@@ -167,7 +168,7 @@ function propose(cluster::Cluster, ballots::Vector{Ballot})::Vector{BallotNumber
   collect(values(promises))
 end
 
-function accept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})::Vector{BallotNumber}
+function accept(cluster::AbstractCluster, ballotNumbers::Vector{BallotNumber})::Vector{BallotNumber}
   if isempty(ballotNumbers)
     Vector{BallotNumber}()
   else
@@ -185,11 +186,11 @@ function onPrepare(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
   votes!(ledger, ballotNumbers)
 end
 
-function onPropose(cluster::Cluster, ballots::Vector{Ballot})
+function onPropose(ledger::Ledger, ballots::Vector{Ballot})
   promises!(ledger, ballots)
 end
 
-function onAccept(cluster::Cluster, ballotNumbers::Vector{BallotNumber})
+function onAccept(ledger::Ledger, ballotNumbers::Vector{BallotNumber})
   accepted!(ledger, ballotNumbers)
 end
 
@@ -207,7 +208,7 @@ end
 
 # Server protocol
 
-function onRequest(cluster::Cluster, command::Command) end
+function onRequest(cluster::AbstractCluster, command::Command) end
 
 function respond(
   client::Messenger,

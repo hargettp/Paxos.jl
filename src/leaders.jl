@@ -36,12 +36,11 @@ function lead(leaderID::NodeID, ledger::Ledger, cfg::Configuration, transport::T
     try
       while isopen(leader.requests)
         clientRequests = readAvailable(leader.requests)
-        clients::Dict{InstanceID,Messenger}, ballots::Dict{InstanceID,Ballot} =
-          recordRequests(ledger, leader.id, clientRequests)
+        clients, ballots = recordRequests(ledger, leader.id, clientRequests)
         try
-          choices::Dict{InstanceID,Ballot} = prepareBallots(cluster, ledger, ballots)
-          promises::Vector{BallotNumber} = proposeBallots(cluster, ledger, choices)
-          acceptances::Vector{BallotNumber} = acceptBallots(cluster, ledger, promises)
+          choices = prepareBallots(cluster, ledger, ballots)
+          promises = proposeBallots(cluster, ledger, choices)
+          acceptances = acceptBallots(cluster, ledger, promises)
           reportResults(clients, ballots, choices, acceptances)
         catch ex
           result =

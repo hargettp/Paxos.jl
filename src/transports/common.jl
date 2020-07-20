@@ -6,7 +6,6 @@ module Common
 export Message,
   Transport,
   Connection,
-  Address,
   Connections,
   connectOne,
   connectAll,
@@ -49,11 +48,6 @@ using the connection.
 abstract type Connection end
 
 """
-An identifier for a destination for messages over a particular `Transport`
-"""
-abstract type Address end
-
-"""
 A listener is typically a task that is awaiting incoming connections; closing a listener will
 prevent further connections to that listener.
 """
@@ -66,7 +60,7 @@ Create a connection (if one is possible) that enables sending and receiving
 messages to the recipient. The provided handler should take 1 argument,
 a `Connection` for sending or receiving messages with the recipient.
 """
-function connectTo(transport::Transport, recipient::Address)::Connection end
+function connectTo(transport::Transport, recipient)::Connection end
 
 """
 Listen for incoming connections and invoke the indicated function when they appear.
@@ -231,14 +225,14 @@ end
 
 struct Connections
   transport::Transport
-  messengers::Dict{Address,Messenger}
+  messengers::Dict{Any,Messenger}
 end
 
 function Base.getindex(connections::Connections, address)
   get(connections.messengers, address, messengerTo(connections.transport, address))
 end
 
-Connections(transport::Transport) = Connections(transport, Dict{Address,Messenger}())
+Connections(transport::Transport) = Connections(transport, Dict{Any,Messenger}())
 
 """
 Create a connection to the address and if successful retain it in `connections`

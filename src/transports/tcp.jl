@@ -4,7 +4,7 @@ between participants.
 """
 module TCP
 
-export tcp,TCPAddress
+export tcp
 
 import Sockets
 
@@ -20,11 +20,6 @@ struct TCPConnection <: Connection
     socket::Sockets.TCPSocket
 end
 
-struct TCPAddress <: Address
-    host::String
-    port::Int64
-end
-
 function tcp()
     TCPTransport()
 end
@@ -36,9 +31,8 @@ Create a connection (if one is possible) that enables sending and receiving
 messages to the recipient. The provided handler should take 1 argument,
 a `Connection` for sending or receiving messages with the recipient.
 """
-function Common.connectTo(transport::TCPTransport, recipient::TCPAddress)
-    host = recipient.host
-    port = recipient.port
+function Common.connectTo(transport::TCPTransport, recipient)
+    host, port = recipient
     @debug "Connecting to $recipient over TCP"
     TCPConnection(Sockets.connect(host, port))
 end
@@ -47,10 +41,9 @@ end
 Listen for incoming connections and invoke the indicated function when they appear.
 Returns a `Listener`
 """
-function Common.listenOn(handler::Function, transport::TCPTransport, address::TCPAddress)
+function Common.listenOn(handler::Function, transport::TCPTransport, address)
     @debug "Beginning to listen for TCP connections on $address"
-    host = address.host
-    port = address.port
+    host, port = address
     @sync try
         server = Sockets.listen(port)
         @debug "Waiting for TCP connections"

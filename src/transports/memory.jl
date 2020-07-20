@@ -4,19 +4,15 @@ within the current process.
 """
 module Memory
 
-export memory, MemoryAddress
+export memory
 
 using UUIDs
 using Base
 
 using ..Common
 
-struct MemoryAddress <: Address
-    destination::String
-end
-
 struct MemoryTransport <: Transport
-    listeners::Dict{MemoryAddress,Channel}
+    listeners::Dict{Any,Channel}
 end
 
 struct MemoryConnection <: Connection
@@ -33,7 +29,7 @@ end
 
 # -----------------
 
-function Common.connectTo(transport::MemoryTransport, recipient::MemoryAddress)
+function Common.connectTo(transport::MemoryTransport, recipient)
     backlog = get!(transport.listeners,recipient, Channel())
     sent = Channel()
     received = Channel()
@@ -44,7 +40,7 @@ function Common.connectTo(transport::MemoryTransport, recipient::MemoryAddress)
     MemoryConnection(sent, received)
 end
 
-function Common.listenOn(handler::Function, transport::MemoryTransport, address::MemoryAddress)
+function Common.listenOn(handler::Function, transport::MemoryTransport, address)
     @sync try
         @debug "Beginning to listen for memory connections on $address"
         connections = get!(transport.listeners,address, Channel())

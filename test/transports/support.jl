@@ -75,8 +75,13 @@ function calls(fn, transport, addressesAndtimeouts, overallTimeout, greeting)
     end
 end
 
-function testGoodCalls(transport,addressesAndTimeouts)
+function testGoodCalls(transport)
     worked = false
+    addressesAndTimeouts = [
+        (("localhost", 8001),1),
+        (("localhost", 8002),1),
+        (("localhost", 8003),1)
+    ]
     calls(transport, addressesAndTimeouts, 3, "hello") do responses
         expected = [
             "1: hello",
@@ -88,11 +93,17 @@ function testGoodCalls(transport,addressesAndTimeouts)
     worked
 end
 
-function testBadCalls(transport, addressesAndTimeouts)
+function testBadCalls(transport)
     worked = false
+    addressesAndTimeouts = [
+        (("localhost", 8004),0.1),
+        (("localhost", 8005),2),
+        (("localhost", 8006),0.1)
+    ]
     calls(transport, addressesAndTimeouts, 2, "hello") do responses
         expected = [
-            "1: hello"
+            "1: hello",
+            "3: hello"
         ]
         worked = (sort(responses) == expected)
     end
